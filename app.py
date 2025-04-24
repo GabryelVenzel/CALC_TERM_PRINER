@@ -158,17 +158,15 @@ with st.sidebar.expander("Opções", expanded=False):
             st.subheader("Isolantes Cadastrados")
             isolantes = carregar_isolantes()
             for i in isolantes:
-                col1, col2 = st.columns([4, 1])
-                col1.write(f"**{i['nome']}**")
-                if col2.button("🗑️", key=f"excluir_{i['nome']}"):
+                st.write(f"**{i['nome']}**")
+                if st.button(f"Excluir {i['nome']}"):
                     excluir_isolante(i['nome'])
                     st.success(f"Isolante {i['nome']} excluído com sucesso!")
-                    st.experimental_rerun()
 
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
 
-tab1, tab2 = st.tabs(["Cálculo Simplificado", "Cálculo Completo"])
+tab1, tab2 = st.tabs(["Cálculo de face fria", "Cálculo Financeiro"])
 
 with tab1:
     isolantes = carregar_isolantes()
@@ -177,70 +175,66 @@ with tab1:
     isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
     k_func_str = isolante['k_func']
 
-    L_mm = st.number_input("Espessura do isolante [mm]", value=51.0)
-    L = L_mm / 1000
+    qtd_camadas = st.selectbox("Quantidade de Camadas", [1, 2, 3])
+    Ls = []
+    for i in range(qtd_camadas):
+        L_mm = st.number_input(f"Espessura da camada {i+1} [mm]", value=51.0, key=f"espessura_{i}")
+        Ls.append(L_mm / 1000)
+
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
     if st.button("Calcular Temperatura da Face Fria"):
-        Tf = To + 10.0
-        max_iter = 1000
-        step = 100.0
-        min_step = 0.01
-        tolerancia = 1.0
-        progress = st.progress(0)
-        q_transferencia = None
-        convergiu = False
-        erro_anterior = None
+        resultados = []
+        T_entrada = Tq
 
-        for i in range(max_iter):
-            progress.progress(i / max_iter)
-            T_media = (Tq + Tf) / 2
-            k = calcular_k(k_func_str, T_media)
-            if k is None:
+        for idx, L in enumerate(Ls):
+            Tf = To + 10.0
+            max_iter = 1000
+            step = 100.0
+            min_step = 0.01
+            tolerancia = 1.0
+            erro_anterior = None
+            convergiu = False
+
+            for _ in range(max_iter):
+                T_media = (T_entrada + Tf) / 2
+                k = calcular_k(k_func_str, T_media)
+                if k is None:
+                    break
+
+                q_conducao = k * (T_entrada - Tf) / L
+
+                Tf_K = Tf + 273.15
+                To_K = To + 273.15
+                h_conv = calcular_h_conv(Tf, To, L)
+                q_rad = e * sigma * (Tf_K**4 - To_K**4)
+                q_conv = h_conv * (Tf - To)
+                q_transferencia = q_conv + q_rad
+
+                erro = q_conducao - q_transferencia
+
+                if abs(erro) < tolerancia:
+                    convergiu = True
+                    break
+
+                if erro_anterior is not None and erro * erro_anterior < 0:
+                    step = max(min_step, step * 0.5)
+
+                Tf += step if erro > 0 else -step
+                erro_anterior = erro
+
+            if convergiu:
+                resultados.append((idx+1, Tf))
+                T_entrada = Tf
+            else:
+                st.error(f"\U0000274C O cálculo da camada {idx+1} não convergiu.")
                 break
 
-            q_conducao = k * (Tq - Tf) / L
-
-            Tf_K = Tf + 273.15
-            To_K = To + 273.15
-            Tq_K = Tq + 273.15
-
-            h_conv = calcular_h_conv(Tf, To, L)
-            q_rad = e * sigma * (Tf_K**4 - To_K**4)
-            q_conv = h_conv * (Tf - To)
-            q_transferencia = q_conv + q_rad
-
-            erro = q_conducao - q_transferencia
-
-            if abs(erro) < tolerancia:
-                convergiu = True
-                break
-
-            if erro_anterior is not None and erro * erro_anterior < 0:
-                step = max(min_step, step * 0.5)
-
-            Tf += step if erro > 0 else -step
-            erro_anterior = erro
-            time.sleep(0.01)
-
-        st.subheader("Resultados")
-
-        if convergiu:
-            st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
-        else:
-            st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
-
-        if q_transferencia is not None:
-            perda_com = q_transferencia / 1000
-            st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
-
-            hr_sem = e * sigma * (Tq_K**4 - To_K**4)
-            h_total_sem = calcular_h_conv(Tq, To, L) + hr_sem / (Tq - To)
-            q_sem_isolante = h_total_sem * (Tq - To)
-
-            perda_sem = q_sem_isolante / 1000
-            st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
+        if resultados:
+            st.subheader("Resultados")
+            for camada, temp in resultados:
+                st.success(f"\U00002705 Temperatura da face fria da camada {camada}: {temp:.1f} °C".replace('.', ','))
 
 with tab2:
     st.markdown("### Em breve: Cálculo com retorno financeiro")
