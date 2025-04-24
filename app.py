@@ -158,10 +158,12 @@ with st.sidebar.expander("Opções", expanded=False):
             st.subheader("Isolantes Cadastrados")
             isolantes = carregar_isolantes()
             for i in isolantes:
-                st.write(f"**{i['nome']}**")
-                if st.button(f"Excluir {i['nome']}"):
+                col1, col2 = st.columns([4, 1])
+                col1.write(f"**{i['nome']}**")
+                if col2.button("🗑️", key=f"excluir_{i['nome']}"):
                     excluir_isolante(i['nome'])
                     st.success(f"Isolante {i['nome']} excluído com sucesso!")
+                    st.experimental_rerun()
 
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
