@@ -2,3 +2,5 @@
 pillow==11.2.1
 gspread
 oauth2client
+pandas
+scipy
