@@ -54,6 +54,16 @@ def carregar_isolantes():
     df = pd.DataFrame(worksheet.get_all_records())
     return df.to_dict(orient="records")
 
+def salvar_isolante(nome, densidade, k_func):
+    worksheet.append_row([nome, densidade, k_func])
+
+def excluir_isolante(nome):
+    isolantes = worksheet.get_all_records()
+    for i, isolante in enumerate(isolantes):
+        if isolante['nome'] == nome:
+            worksheet.delete_rows(i + 2)  # +2 porque o índice da API começa em 1 e tem cabeçalho
+            break
+
 def calcular_k(k_func_str, T_media):
     try:
         if isinstance(k_func_str, (int, float)):
@@ -62,6 +72,28 @@ def calcular_k(k_func_str, T_media):
     except Exception as ex:
         st.error(f"Erro ao calcular k(T): {ex}")
         return None
+
+# --- ABA DE GESTÃO DE ISOLANTES ---
+with st.expander("Gerenciar Isolantes", expanded=False):
+    st.markdown("### Cadastrar Novo Isolante")
+    nome_novo = st.text_input("Nome do isolante")
+    densidade_nova = st.number_input("Densidade [kg/m³]", min_value=0.0, step=1.0)
+    k_func_nova = st.text_input("Função k(T) em W/m·K (ex: 0.035 + 0.0001*T)")
+
+    if st.button("Cadastrar Isolante"):
+        if nome_novo and k_func_nova:
+            salvar_isolante(nome_novo, densidade_nova, k_func_nova)
+            st.success(f"Isolante '{nome_novo}' cadastrado com sucesso!")
+        else:
+            st.warning("Preencha todos os campos para cadastrar o isolante.")
+
+    st.markdown("### Excluir Isolante")
+    isolantes = carregar_isolantes()
+    nomes_isolantes = [i['nome'] for i in isolantes]
+    nome_excluir = st.selectbox("Selecione o isolante a excluir", nomes_isolantes)
+    if st.button("Excluir Isolante"):
+        excluir_isolante(nome_excluir)
+        st.success(f"Isolante '{nome_excluir}' excluído com sucesso!")
 
 # --- CONSTANTES ---
 e = 0.9
