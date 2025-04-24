@@ -218,3 +218,4 @@ st.markdown("""
 > 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
+
