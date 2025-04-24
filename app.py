@@ -97,54 +97,55 @@ with tab1:
     isolantes = carregar_isolantes()
     materiais = [i['nome'] for i in isolantes]
 
-# --- ACESSO ADMIN PARA CADASTRAR/EXCLUIR ISOLANTES ---
-with st.expander("Cadastrar ou Gerenciar Isolantes"):
+    # --- ÁREA RESTRITA DE CADASTRO/GERENCIAMENTO ---
+    st.markdown("### Área restrita - Cadastro/Gerenciamento de Isolantes")
     senha = st.text_input("Digite a senha para acessar esta área:", type="password")
     if senha == "Priner123":
         modo = st.radio("Modo", ["Cadastrar", "Excluir"], horizontal=True)
 
+        tipo_equacao = st.selectbox("Selecione o tipo de função k(T):", [
+            "k = a",
+            "k = a + b*T",
+            "k = a + b*T + c*T²"
+        ])
+
+        nome = st.text_input("Nome do isolante")
+        densidade = st.number_input("Densidade [kg/m³]", min_value=0.0)
+
+        if tipo_equacao == "k = a":
+            a = st.number_input("a")
+            k_func = f"{a}"
+        elif tipo_equacao == "k = a + b*T":
+            a = st.number_input("a")
+            b = st.number_input("b")
+            k_func = f"{a} + {b}*T"
+        else:
+            a = st.number_input("a")
+            b = st.number_input("b")
+            c = st.number_input("c")
+            k_func = f"{a} + {b}*T + {c}*T**2"
+
         if modo == "Cadastrar":
-            nome = st.text_input("Nome do isolante")
-            densidade = st.number_input("Densidade [kg/m³]", min_value=0.0, step=0.1)
-            tipo_k = st.selectbox("Tipo de função k(T)", ["Constante", "Linear (a + b*T)", "Polinomial (a + b*T + c*T²)"])
-
-            if tipo_k == "Constante":
-                a = st.number_input("k [W/m·K]", step=0.001, format="%.3f")
-                k_func = f"{a}"
-            elif tipo_k == "Linear (a + b*T)":
-                a = st.number_input("a [W/m·K]", step=0.001, format="%.3f")
-                b = st.number_input("b [W/m·K²]", step=0.00001, format="%.5f")
-                k_func = f"{a} + {b} * T"
-            elif tipo_k == "Polinomial (a + b*T + c*T²)":
-                a = st.number_input("a [W/m·K]", step=0.001, format="%.3f")
-                b = st.number_input("b [W/m·K²]", step=0.00001, format="%.5f")
-                c = st.number_input("c [W/m·K³]", step=0.000001, format="%.6f")
-                k_func = f"{a} + {b} * T + {c} * T**2"
-
-            if st.button("Salvar isolante"):
-                existentes = carregar_isolantes()
-                nomes_existentes = [iso['nome'] for iso in existentes]
-                if nome in nomes_existentes:
-                    st.warning("Já existe um isolante com esse nome.")
-                else:
+            if st.button("Cadastrar Isolante"):
+                isolantes_existentes = carregar_isolantes()
+                if nome and not any(i['nome'].lower() == nome.lower() for i in isolantes_existentes):
                     worksheet.append_row([nome, densidade, k_func])
-                    st.success("Isolante salvo com sucesso!")
+                    st.success("Isolante cadastrado com sucesso!")
+                    st.experimental_rerun()
+                else:
+                    st.warning("Nome já existe ou inválido.")
 
         elif modo == "Excluir":
-            isolantes = carregar_isolantes()
-            nomes = [iso['nome'] for iso in isolantes]
-            nome_excluir = st.selectbox("Selecione o isolante a ser excluído", nomes)
-            if st.button("Excluir isolante"):
-                registros = worksheet.get_all_records()
-                for idx, registro in enumerate(registros):
-                    if registro['nome'] == nome_excluir:
-                        worksheet.delete_rows(idx + 2)
-                        st.success("Isolante excluído com sucesso.")
-                        break
-    else:
-        if senha:
-            st.error("Senha incorreta.")
-    
+            nomes = [i['nome'] for i in carregar_isolantes()]
+            nome_excluir = st.selectbox("Selecione o isolante para excluir", nomes)
+            if st.button("Excluir Isolante"):
+                df = pd.DataFrame(worksheet.get_all_records())
+                idx = df[df['nome'] == nome_excluir].index
+                if not idx.empty:
+                    worksheet.delete_rows(idx[0]+2)
+                    st.success("Isolante excluído com sucesso!")
+                    st.experimental_rerun()
+
     material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
     isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
     k_func_str = isolante['k_func']
@@ -154,13 +155,14 @@ with st.expander("Cadastrar ou Gerenciar Isolantes"):
     espessuras = []
     for i in range(num_camadas):
         esp = st.number_input(f"Espessura da camada {i+1} [mm]", value=25.0, key=f"L{i}")
-        espessuras.append(esp / 1000)
+        espessuras.append(esp / 1000)  # convertendo para metros
 
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
     if st.button("Calcular Temperaturas de Face Fria"):
         if num_camadas == 1:
+            # --- Uma camada ---
             L_total = espessuras[0]
             Tf = To + 10.0
             max_iter = 1000
@@ -203,6 +205,7 @@ with st.expander("Cadastrar ou Gerenciar Isolantes"):
                 st.error("O cálculo não convergiu.")
 
         elif num_camadas == 2:
+            # --- Duas camadas ---
             L1, L2 = espessuras
 
             def sistema(vars):
@@ -227,6 +230,7 @@ with st.expander("Cadastrar ou Gerenciar Isolantes"):
                 st.error("Não foi possível resolver o sistema para duas camadas.")
 
         elif num_camadas == 3:
+            # --- Três camadas ---
             L1, L2, L3 = espessuras
 
             def sistema(vars):
@@ -253,43 +257,6 @@ with st.expander("Cadastrar ou Gerenciar Isolantes"):
                 st.success(f"Temperatura da face fria externa: {Tf3:.1f} °C".replace('.', ','))
             else:
                 st.error("Não foi possível resolver o sistema para três camadas.")
-
-    with st.expander("Área restrita - Cadastro/Gerenciamento de Isolantes"):
-        senha = st.text_input("Digite a senha para acessar", type="password")
-        if senha == st.secrets["ADMIN_PASSWORD"]:
-            modo = st.radio("Escolha uma ação", ["Cadastrar novo isolante", "Excluir isolante"])
-
-            if modo == "Cadastrar novo isolante":
-                nome = st.text_input("Nome do isolante")
-                densidade = st.number_input("Densidade (kg/m³)", min_value=0.0, value=100.0)
-                tipo_eq = st.selectbox("Tipo de equação k(T)", ["Linear (a + b*T)", "Polinomial (a + b*T + c*T²)", "Exponencial (a * exp(b*T))"])
-
-                if tipo_eq == "Linear (a + b*T)":
-                    a = st.number_input("a")
-                    b = st.number_input("b")
-                    k_func = f"{a} + {b}*T"
-                elif tipo_eq == "Polinomial (a + b*T + c*T²)":
-                    a = st.number_input("a")
-                    b = st.number_input("b")
-                    c = st.number_input("c")
-                    k_func = f"{a} + {b}*T + {c}*T**2"
-                else:
-                    a = st.number_input("a")
-                    b = st.number_input("b")
-                    k_func = f"{a} * math.exp({b}*T)"
-
-                if st.button("Salvar isolante"):
-                    worksheet.append_row([nome, densidade, k_func])
-                    st.success("Isolante cadastrado com sucesso!")
-
-            elif modo == "Excluir isolante":
-                df = pd.DataFrame(worksheet.get_all_records())
-                nomes = df['nome'].tolist()
-                nome_excluir = st.selectbox("Selecione o isolante para excluir", nomes)
-                if st.button("Excluir isolante"):
-                    celula = worksheet.find(nome_excluir)
-                    worksheet.delete_rows(celula.row)
-                    st.success("Isolante excluído com sucesso!")
 
 with tab2:
     st.markdown("### Em breve: Cálculo com retorno financeiro")
