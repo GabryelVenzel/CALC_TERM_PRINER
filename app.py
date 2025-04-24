@@ -5,6 +5,7 @@ from PIL import Image
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
+import json
 
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -39,8 +40,6 @@ logo = Image.open("logo.png")
 st.image(logo, width=300)
 
 # --- CONECTAR COM GOOGLE SHEETS ---
-import json
-
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 gcp_json = json.loads(st.secrets["GCP_JSON"])
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(gcp_json, scope)
@@ -74,7 +73,6 @@ def calcular_k(k_func_str, T_media):
 e = 0.9
 sigma = 5.67e-8
 
-# --- h_conv para placa horizontal com face quente para BAIXO ---
 def calcular_h_conv(Tf, To, L, isolante=False):
     g = 9.81
     Tf_K = Tf + 273.15
@@ -96,7 +94,7 @@ def calcular_h_conv(Tf, To, L, isolante=False):
     h_conv = Nu * k_ar / L
     return h_conv
 
-# --- ACESSO --- 
+# --- MENU LATERAL ---
 with st.sidebar.expander("Opções", expanded=False):
     senha = st.text_input("Digite a senha", type="password")
 
@@ -131,7 +129,7 @@ with st.sidebar.expander("Opções", expanded=False):
                 k_func = f"{k0} + {k1}*T + {k2}*T**2 + {k3}*T**3 + {k4}*T**4"
                 equacao_latex = (
                     f"k(T) = {str(k0).replace('.', ',')} + {str(k1).replace('.', ',')} \\cdot T + "
-                    f"{str(k2).replace('.', ',')} \\cdot T^2 + {str(k3).replace(".", ",")} \\cdot T^3 + "
+                    f"{str(k2).replace('.', ',')} \\cdot T^2 + {str(k3).replace('.', ',')} \\cdot T^3 + "
                     f"{str(k4).replace('.', ',')} \\cdot T^4"
                 )
 
@@ -168,82 +166,83 @@ with st.sidebar.expander("Opções", expanded=False):
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
 
-# --- SELEÇÃO DO MATERIAL --- 
-isolantes = carregar_isolantes()
-materiais = [i['nome'] for i in isolantes]
-material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
-isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
-k_func_str = isolante['k_func']
+tab1, tab2 = st.tabs(["Cálculo Simplificado", "Cálculo Completo"])
 
-# --- ENTRADAS --- 
-L_mm = st.number_input("Espessura do isolante [mm]", value=51.0)
-L = L_mm / 1000
-Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
-To = st.number_input("Temperatura ambiente [°C]", value=30.0)
+with tab1:
+    isolantes = carregar_isolantes()
+    materiais = [i['nome'] for i in isolantes]
+    material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
+    isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
+    k_func_str = isolante['k_func']
 
-# --- BOTÃO DE CALCULAR ---
-if st.button("Calcular Temperatura da Face Fria"):
-    Tf = To + 10.0
-    max_iter = 1000
-    step = 100.0
-    min_step = 0.01
-    tolerancia = 1.0
-    progress = st.progress(0)
-    q_transferencia = None
-    convergiu = False
-    erro_anterior = None
+    L_mm = st.number_input("Espessura do isolante [mm]", value=51.0)
+    L = L_mm / 1000
+    Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
+    To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
-    for i in range(max_iter):
-        progress.progress(i / max_iter)
-        T_media = (Tq + Tf) / 2
-        k = calcular_k(k_func_str, T_media)
-        if k is None:
-            break
+    if st.button("Calcular Temperatura da Face Fria"):
+        Tf = To + 10.0
+        max_iter = 1000
+        step = 100.0
+        min_step = 0.01
+        tolerancia = 1.0
+        progress = st.progress(0)
+        q_transferencia = None
+        convergiu = False
+        erro_anterior = None
 
-        q_conducao = k * (Tq - Tf) / L
+        for i in range(max_iter):
+            progress.progress(i / max_iter)
+            T_media = (Tq + Tf) / 2
+            k = calcular_k(k_func_str, T_media)
+            if k is None:
+                break
 
-        Tf_K = Tf + 273.15
-        To_K = To + 273.15
-        Tq_K = Tq + 273.15
+            q_conducao = k * (Tq - Tf) / L
 
-        h_conv = calcular_h_conv(Tf, To, L)
-        print(f"h_conv calculado: {h_conv:.4f} W/m²·K")
-        q_rad = e * sigma * (Tf_K**4 - To_K**4)
-        q_conv = h_conv * (Tf - To)
-        q_transferencia = q_conv + q_rad
+            Tf_K = Tf + 273.15
+            To_K = To + 273.15
+            Tq_K = Tq + 273.15
 
-        erro = q_conducao - q_transferencia
+            h_conv = calcular_h_conv(Tf, To, L)
+            q_rad = e * sigma * (Tf_K**4 - To_K**4)
+            q_conv = h_conv * (Tf - To)
+            q_transferencia = q_conv + q_rad
 
-        if abs(erro) < tolerancia:
-            convergiu = True
-            break
+            erro = q_conducao - q_transferencia
 
-        if erro_anterior is not None and erro * erro_anterior < 0:
-            step = max(min_step, step * 0.5)
+            if abs(erro) < tolerancia:
+                convergiu = True
+                break
 
-        Tf += step if erro > 0 else -step
-        erro_anterior = erro
-        time.sleep(0.01)
+            if erro_anterior is not None and erro * erro_anterior < 0:
+                step = max(min_step, step * 0.5)
 
-    # --- RESULTADOS ---
-    st.subheader("Resultados")
+            Tf += step if erro > 0 else -step
+            erro_anterior = erro
+            time.sleep(0.01)
 
-    if convergiu:
-        st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
-    else:
-        st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
+        st.subheader("Resultados")
 
-    if q_transferencia is not None:
-        perda_com = q_transferencia / 1000
-        st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
+        if convergiu:
+            st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
+        else:
+            st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
 
-        hr_sem = e * sigma * (Tq_K**4 - To_K**4)
-        h_total_sem = calcular_h_conv(Tq, To, L) + hr_sem / (Tq - To)
-        q_sem_isolante = h_total_sem * (Tq - To)
+        if q_transferencia is not None:
+            perda_com = q_transferencia / 1000
+            st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
 
-        perda_sem = q_sem_isolante / 1000
-        st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
+            hr_sem = e * sigma * (Tq_K**4 - To_K**4)
+            h_total_sem = calcular_h_conv(Tq, To, L) + hr_sem / (Tq - To)
+            q_sem_isolante = h_total_sem * (Tq - To)
 
+            perda_sem = q_sem_isolante / 1000
+            st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
+
+with tab2:
+    st.markdown("### Em breve: Cálculo com retorno financeiro")
+    st.info("Esta aba será utilizada para calcular a economia financeira com o uso de isolamento térmico.")
 
 # --- OBSERVAÇÃO ---
 st.markdown("""
@@ -252,4 +251,3 @@ st.markdown("""
 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
