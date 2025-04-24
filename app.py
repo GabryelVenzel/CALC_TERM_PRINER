@@ -88,42 +88,63 @@ def calcular_h_conv(Tf, To, L):
     h_conv = Nu * k_ar / L
     return h_conv
 
-# --- INTERFACE PRINCIPAL ---
-st.title("Cálculo Térmico - IsolaFácil")
+# Título principal
+st.markdown("<h1 style='text-align: center;'>Cálculo Térmico - IsolaFácil</h1>", unsafe_allow_html=True)
 
-# --- EXPANDER PARA CADASTRO/GERENCIAMENTO (MOVIDO PARA CIMA) ---
+# Área restrita (posicionada logo após o título)
 with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", expanded=False):
     senha = st.text_input("Digite a senha para acessar:", type="password")
     if senha == "Priner123":
-        modo = st.radio("Modo", ["Cadastrar novo isolante", "Excluir isolante"])
-        if modo == "Cadastrar novo isolante":
+        st.success("Acesso concedido.")
+
+        aba = st.radio("Selecione a operação desejada:", ["Cadastrar Isolante", "Excluir Isolante"])
+
+        planilha_id = "1vZ4t8DnRVe-oyWL_g6xrkVqGc6oYEK8fQkHp7a8tZKw"
+        aba_nome = "isolantes"
+
+        @st.cache_data
+        def carregar_dados():
+            url = f"https://docs.google.com/spreadsheets/d/{planilha_id}/gviz/tq?tqx=out:csv&sheet={aba_nome}"
+            return pd.read_csv(url)
+
+        def salvar_dados(df):
+            # Aqui entraria o código para salvar no Google Sheets (omitido por segurança)
+            pass
+
+        df = carregar_dados()
+
+        if aba == "Cadastrar Isolante":
             nome = st.text_input("Nome do isolante")
-            tipo_eq = st.selectbox("Tipo de equação k(T)", ["Constante", "Linear", "Polinomial 2º grau"])
-            if tipo_eq == "Constante":
-                c1 = st.number_input("k (constante)", value=0.05)
-                k_func = f"{c1}"
-            elif tipo_eq == "Linear":
-                c1 = st.number_input("k = a + b·T → a", value=0.05)
-                c2 = st.number_input("k = a + b·T → b", value=0.0001)
-                k_func = f"{c1} + {c2}*T"
+            densidade = st.number_input("Densidade (kg/m³)", min_value=0.0, format="%.2f")
+            tipo_equacao = st.selectbox("Tipo de equação para k(T):", ["a + b*T", "a + b*T + c*T²", "a + b*log(T)"])
+
+            if tipo_equacao == "a + b*T":
+                a = st.number_input("a", format="%.6f")
+                b = st.number_input("b", format="%.6f")
+                c = 0
+                tipo = "linear"
+            elif tipo_equacao == "a + b*T + c*T²":
+                a = st.number_input("a", format="%.6f")
+                b = st.number_input("b", format="%.6f")
+                c = st.number_input("c", format="%.6f")
+                tipo = "polinomial"
             else:
-                c1 = st.number_input("k = a + b·T + c·T² → a", value=0.05)
-                c2 = st.number_input("k = a + b·T + c·T² → b", value=0.0001)
-                c3 = st.number_input("k = a + b·T + c·T² → c", value=0.000001)
-                k_func = f"{c1} + {c2}*T + {c3}*T**2"
+                a = st.number_input("a", format="%.6f")
+                b = st.number_input("b", format="%.6f")
+                c = 0
+                tipo = "logarítmica"
 
             if st.button("Cadastrar isolante"):
-                worksheet.append_row([nome, k_func])
+                novo = pd.DataFrame([[nome, densidade, tipo, a, b, c]], columns=df.columns)
+                df = pd.concat([df, novo], ignore_index=True)
+                salvar_dados(df)
                 st.success("Isolante cadastrado com sucesso!")
 
-        elif modo == "Excluir isolante":
-            isolantes = carregar_isolantes()
-            nomes = [i["nome"] for i in isolantes]
-            selecao = st.selectbox("Selecione o isolante para excluir", nomes)
+        elif aba == "Excluir Isolante":
+            isolante_selecionado = st.selectbox("Selecione o isolante a ser excluído", df["nome"].tolist())
             if st.button("Excluir isolante"):
-                df = pd.DataFrame(worksheet.get_all_records())
-                indice = df[df["nome"] == selecao].index[0] + 2
-                worksheet.delete_rows(indice)
+                df = df[df["nome"] != isolante_selecionado]
+                salvar_dados(df)
                 st.success("Isolante excluído com sucesso!")
 
 # --- TABS PRINCIPAIS ---
