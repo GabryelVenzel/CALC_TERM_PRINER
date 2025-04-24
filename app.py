@@ -6,6 +6,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
+from scipy.optimize import root
 
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -99,69 +100,38 @@ with tab1:
     k_func_str = isolante['k_func']
 
     num_camadas = st.selectbox("Quantidade de Camadas", [1, 2, 3], index=0)
-
     espessuras = []
     for i in range(num_camadas):
         esp = st.number_input(f"Espessura da camada {i+1} [mm]", value=25.0, key=f"L{i}")
-        espessuras.append(esp / 1000)  # convertendo para metros
+        espessuras.append(esp / 1000)
 
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
     if st.button("Calcular Temperaturas de Face Fria"):
-        L_total = sum(espessuras)
-        Tf = To + 10.0
-        max_iter = 1000
-        step = 100.0
-        min_step = 0.01
-        tolerancia = 1.0
-        erro_anterior = None
-        convergiu = False
+        def sistema(vars):
+            Tf1, Tf2, Tf3 = vars if num_camadas == 3 else (vars + [None] * (3 - len(vars)))
+            q1 = (Tq - Tf1) / espessuras[0] * calcular_k(k_func_str, (Tq + Tf1)/2)
+            q2 = (Tf1 - Tf2) / espessuras[1] * calcular_k(k_func_str, (Tf1 + Tf2)/2) if num_camadas >= 2 else q1
+            q3 = (Tf2 - Tf3) / espessuras[2] * calcular_k(k_func_str, (Tf2 + Tf3)/2) if num_camadas == 3 else q2
+            L_ext = espessuras[-1]
+            h = calcular_h_conv(Tf3 if Tf3 else Tf2 if Tf2 else Tf1, To, L_ext)
+            Tf_ext = Tf3 if Tf3 else Tf2 if Tf2 else Tf1
+            q_out = h * (Tf_ext - To) + e * sigma * ((Tf_ext+273.15)**4 - (To+273.15)**4)
+            return [
+                q1 - q2 if num_camadas >= 2 else 0,
+                q2 - q3 if num_camadas == 3 else 0,
+                q3 - q_out if num_camadas == 3 else q2 - q_out if num_camadas == 2 else q1 - q_out
+            ][:num_camadas]
 
-        for _ in range(max_iter):
-            T_media = (Tq + Tf) / 2
-            k_total = calcular_k(k_func_str, T_media)
-            if k_total is None:
-                break
+        x0 = [Tq - 20 * (i+1) for i in range(num_camadas)]
+        sol = root(sistema, x0)
 
-            q_cond = k_total * (Tq - Tf) / L_total
-            Tf_K = Tf + 273.15
-            To_K = To + 273.15
-            h_conv = calcular_h_conv(Tf, To, L_total)
-            q_rad = e * sigma * (Tf_K**4 - To_K**4)
-            q_conv = h_conv * (Tf - To)
-            q_total = q_rad + q_conv
-
-            erro = q_cond - q_total
-
-            if abs(erro) < tolerancia:
-                convergiu = True
-                break
-
-            if erro_anterior and erro * erro_anterior < 0:
-                step = max(min_step, step * 0.5)
-
-            Tf += step if erro > 0 else -step
-            erro_anterior = erro
-            time.sleep(0.01)
-
-        if convergiu:
-            st.success(f"Temperatura da face fria externa: {Tf:.1f} °C".replace('.', ','))
-
-            # Calcular temperaturas intermediárias
-            T_atu = Tq
-            Tfs = []
-            for L_i in espessuras:
-                T_media_i = (T_atu + Tf) / 2  # estimativa inicial
-                k_i = calcular_k(k_func_str, T_media_i)
-                T_next = T_atu - q_cond * L_i / k_i
-                Tfs.append(T_next)
-                T_atu = T_next
-
-            for i, Tfi in enumerate(Tfs):
-                st.write(f"Temperatura após camada {i+1}: {Tfi:.1f} °C".replace('.', ','))
+        if sol.success:
+            for i, Tfi in enumerate(sol.x):
+                st.write(f"Temperatura da face fria após camada {i+1}: {Tfi:.1f} °C".replace('.', ','))
         else:
-            st.error("O cálculo não convergiu.")
+            st.error("O cálculo não convergiu. Verifique os dados de entrada.")
 
 with tab2:
     st.markdown("### Em breve: Cálculo com retorno financeiro")
@@ -173,3 +143,4 @@ st.markdown("""
 > 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
+
