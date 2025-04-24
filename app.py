@@ -96,6 +96,55 @@ tab1, tab2 = st.tabs(["Cálculo de face fria", "Cálculo Financeiro"])
 with tab1:
     isolantes = carregar_isolantes()
     materiais = [i['nome'] for i in isolantes]
+
+# --- ACESSO ADMIN PARA CADASTRAR/EXCLUIR ISOLANTES ---
+with st.expander("Cadastrar ou Gerenciar Isolantes"):
+    senha = st.text_input("Digite a senha para acessar esta área:", type="password")
+    if senha == "Priner123":
+        modo = st.radio("Modo", ["Cadastrar", "Excluir"], horizontal=True)
+
+        if modo == "Cadastrar":
+            nome = st.text_input("Nome do isolante")
+            densidade = st.number_input("Densidade [kg/m³]", min_value=0.0, step=0.1)
+            tipo_k = st.selectbox("Tipo de função k(T)", ["Constante", "Linear (a + b*T)", "Polinomial (a + b*T + c*T²)"])
+
+            if tipo_k == "Constante":
+                a = st.number_input("k [W/m·K]", step=0.001, format="%.3f")
+                k_func = f"{a}"
+            elif tipo_k == "Linear (a + b*T)":
+                a = st.number_input("a [W/m·K]", step=0.001, format="%.3f")
+                b = st.number_input("b [W/m·K²]", step=0.00001, format="%.5f")
+                k_func = f"{a} + {b} * T"
+            elif tipo_k == "Polinomial (a + b*T + c*T²)":
+                a = st.number_input("a [W/m·K]", step=0.001, format="%.3f")
+                b = st.number_input("b [W/m·K²]", step=0.00001, format="%.5f")
+                c = st.number_input("c [W/m·K³]", step=0.000001, format="%.6f")
+                k_func = f"{a} + {b} * T + {c} * T**2"
+
+            if st.button("Salvar isolante"):
+                existentes = carregar_isolantes()
+                nomes_existentes = [iso['nome'] for iso in existentes]
+                if nome in nomes_existentes:
+                    st.warning("Já existe um isolante com esse nome.")
+                else:
+                    worksheet.append_row([nome, densidade, k_func])
+                    st.success("Isolante salvo com sucesso!")
+
+        elif modo == "Excluir":
+            isolantes = carregar_isolantes()
+            nomes = [iso['nome'] for iso in isolantes]
+            nome_excluir = st.selectbox("Selecione o isolante a ser excluído", nomes)
+            if st.button("Excluir isolante"):
+                registros = worksheet.get_all_records()
+                for idx, registro in enumerate(registros):
+                    if registro['nome'] == nome_excluir:
+                        worksheet.delete_rows(idx + 2)
+                        st.success("Isolante excluído com sucesso.")
+                        break
+    else:
+        if senha:
+            st.error("Senha incorreta.")
+    
     material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
     isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
     k_func_str = isolante['k_func']
