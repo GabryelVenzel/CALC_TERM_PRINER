@@ -7,6 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
 from scipy.optimize import root
+import numpy as np
 
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -100,38 +101,112 @@ with tab1:
     k_func_str = isolante['k_func']
 
     num_camadas = st.selectbox("Quantidade de Camadas", [1, 2, 3], index=0)
+
     espessuras = []
     for i in range(num_camadas):
         esp = st.number_input(f"Espessura da camada {i+1} [mm]", value=25.0, key=f"L{i}")
-        espessuras.append(esp / 1000)
+        espessuras.append(esp / 1000)  # convertendo para metros
 
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
     if st.button("Calcular Temperaturas de Face Fria"):
-        def sistema(vars):
-            Tf1, Tf2, Tf3 = vars if num_camadas == 3 else (vars + [None] * (3 - len(vars)))
-            q1 = (Tq - Tf1) / espessuras[0] * calcular_k(k_func_str, (Tq + Tf1)/2)
-            q2 = (Tf1 - Tf2) / espessuras[1] * calcular_k(k_func_str, (Tf1 + Tf2)/2) if num_camadas >= 2 else q1
-            q3 = (Tf2 - Tf3) / espessuras[2] * calcular_k(k_func_str, (Tf2 + Tf3)/2) if num_camadas == 3 else q2
-            L_ext = espessuras[-1]
-            h = calcular_h_conv(Tf3 if Tf3 else Tf2 if Tf2 else Tf1, To, L_ext)
-            Tf_ext = Tf3 if Tf3 else Tf2 if Tf2 else Tf1
-            q_out = h * (Tf_ext - To) + e * sigma * ((Tf_ext+273.15)**4 - (To+273.15)**4)
-            return [
-                q1 - q2 if num_camadas >= 2 else 0,
-                q2 - q3 if num_camadas == 3 else 0,
-                q3 - q_out if num_camadas == 3 else q2 - q_out if num_camadas == 2 else q1 - q_out
-            ][:num_camadas]
+        if num_camadas == 1:
+            # --- Uma camada ---
+            L_total = espessuras[0]
+            Tf = To + 10.0
+            max_iter = 1000
+            step = 100.0
+            min_step = 0.01
+            tolerancia = 1.0
+            erro_anterior = None
+            convergiu = False
 
-        x0 = [Tq - 20 * (i+1) for i in range(num_camadas)]
-        sol = root(sistema, x0)
+            for _ in range(max_iter):
+                T_media = (Tq + Tf) / 2
+                k_total = calcular_k(k_func_str, T_media)
+                if k_total is None:
+                    break
 
-        if sol.success:
-            for i, Tfi in enumerate(sol.x):
-                st.write(f"Temperatura da face fria após camada {i+1}: {Tfi:.1f} °C".replace('.', ','))
-        else:
-            st.error("O cálculo não convergiu. Verifique os dados de entrada.")
+                q_cond = k_total * (Tq - Tf) / L_total
+                Tf_K = Tf + 273.15
+                To_K = To + 273.15
+                h_conv = calcular_h_conv(Tf, To, L_total)
+                q_rad = e * sigma * (Tf_K**4 - To_K**4)
+                q_conv = h_conv * (Tf - To)
+                q_total = q_rad + q_conv
+
+                erro = q_cond - q_total
+
+                if abs(erro) < tolerancia:
+                    convergiu = True
+                    break
+
+                if erro_anterior and erro * erro_anterior < 0:
+                    step = max(min_step, step * 0.5)
+
+                Tf += step if erro > 0 else -step
+                erro_anterior = erro
+                time.sleep(0.01)
+
+            if convergiu:
+                st.success(f"Temperatura da face fria externa: {Tf:.1f} °C".replace('.', ','))
+            else:
+                st.error("O cálculo não convergiu.")
+
+        elif num_camadas == 2:
+            # --- Duas camadas ---
+            L1, L2 = espessuras
+
+            def sistema(vars):
+                Tf1, Tf2 = vars
+                Tm1 = (Tq + Tf1) / 2
+                Tm2 = (Tf1 + Tf2) / 2
+                k1 = calcular_k(k_func_str, Tm1)
+                k2 = calcular_k(k_func_str, Tm2)
+                q1 = k1 * (Tq - Tf1) / L1
+                q2 = k2 * (Tf1 - Tf2) / L2
+                h_conv = calcular_h_conv(Tf2, To, L2)
+                q_conv = h_conv * (Tf2 - To)
+                q_rad = e * sigma * ((Tf2 + 273.15)**4 - (To + 273.15)**4)
+                return [q1 - q2, q2 - (q_conv + q_rad)]
+
+            sol = root(sistema, [Tq - 10, Tq - 20])
+            if sol.success:
+                Tf1, Tf2 = sol.x
+                st.success(f"Temperatura após camada 1: {Tf1:.1f} °C".replace('.', ','))
+                st.success(f"Temperatura da face fria externa: {Tf2:.1f} °C".replace('.', ','))
+            else:
+                st.error("Não foi possível resolver o sistema para duas camadas.")
+
+        elif num_camadas == 3:
+            # --- Três camadas ---
+            L1, L2, L3 = espessuras
+
+            def sistema(vars):
+                Tf1, Tf2, Tf3 = vars
+                Tm1 = (Tq + Tf1) / 2
+                Tm2 = (Tf1 + Tf2) / 2
+                Tm3 = (Tf2 + Tf3) / 2
+                k1 = calcular_k(k_func_str, Tm1)
+                k2 = calcular_k(k_func_str, Tm2)
+                k3 = calcular_k(k_func_str, Tm3)
+                q1 = k1 * (Tq - Tf1) / L1
+                q2 = k2 * (Tf1 - Tf2) / L2
+                q3 = k3 * (Tf2 - Tf3) / L3
+                h_conv = calcular_h_conv(Tf3, To, L3)
+                q_conv = h_conv * (Tf3 - To)
+                q_rad = e * sigma * ((Tf3 + 273.15)**4 - (To + 273.15)**4)
+                return [q1 - q2, q2 - q3, q3 - (q_conv + q_rad)]
+
+            sol = root(sistema, [Tq - 10, Tq - 20, Tq - 30])
+            if sol.success:
+                Tf1, Tf2, Tf3 = sol.x
+                st.success(f"Temperatura após camada 1: {Tf1:.1f} °C".replace('.', ','))
+                st.success(f"Temperatura após camada 2: {Tf2:.1f} °C".replace('.', ','))
+                st.success(f"Temperatura da face fria externa: {Tf3:.1f} °C".replace('.', ','))
+            else:
+                st.error("Não foi possível resolver o sistema para três camadas.")
 
 with tab2:
     st.markdown("### Em breve: Cálculo com retorno financeiro")
@@ -143,4 +218,3 @@ st.markdown("""
 > 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
