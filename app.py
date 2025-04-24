@@ -54,16 +54,6 @@ def carregar_isolantes():
     df = pd.DataFrame(worksheet.get_all_records())
     return df.to_dict(orient="records")
 
-def salvar_isolante(nome, densidade, k_func):
-    worksheet.append_row([nome, densidade, k_func])
-
-def excluir_isolante(nome):
-    isolantes = worksheet.get_all_records()
-    for i, isolante in enumerate(isolantes):
-        if isolante['nome'] == nome:
-            worksheet.delete_rows(i + 2)  # +2 porque o índice da API começa em 1 e tem cabeçalho
-            break
-
 def calcular_k(k_func_str, T_media):
     try:
         if isinstance(k_func_str, (int, float)):
@@ -72,28 +62,6 @@ def calcular_k(k_func_str, T_media):
     except Exception as ex:
         st.error(f"Erro ao calcular k(T): {ex}")
         return None
-
-# --- ABA DE GESTÃO DE ISOLANTES ---
-with st.expander("Gerenciar Isolantes", expanded=False):
-    st.markdown("### Cadastrar Novo Isolante")
-    nome_novo = st.text_input("Nome do isolante")
-    densidade_nova = st.number_input("Densidade [kg/m³]", min_value=0.0, step=1.0)
-    k_func_nova = st.text_input("Função k(T) em W/m·K (ex: 0.035 + 0.0001*T)")
-
-    if st.button("Cadastrar Isolante"):
-        if nome_novo and k_func_nova:
-            salvar_isolante(nome_novo, densidade_nova, k_func_nova)
-            st.success(f"Isolante '{nome_novo}' cadastrado com sucesso!")
-        else:
-            st.warning("Preencha todos os campos para cadastrar o isolante.")
-
-    st.markdown("### Excluir Isolante")
-    isolantes = carregar_isolantes()
-    nomes_isolantes = [i['nome'] for i in isolantes]
-    nome_excluir = st.selectbox("Selecione o isolante a excluir", nomes_isolantes)
-    if st.button("Excluir Isolante"):
-        excluir_isolante(nome_excluir)
-        st.success(f"Isolante '{nome_excluir}' excluído com sucesso!")
 
 # --- CONSTANTES ---
 e = 0.9
@@ -137,14 +105,13 @@ with tab1:
     espessuras = []
     for i in range(num_camadas):
         esp = st.number_input(f"Espessura da camada {i+1} [mm]", value=25.0, key=f"L{i}")
-        espessuras.append(esp / 1000)  # convertendo para metros
+        espessuras.append(esp / 1000)
 
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
     if st.button("Calcular Temperaturas de Face Fria"):
         if num_camadas == 1:
-            # --- Uma camada ---
             L_total = espessuras[0]
             Tf = To + 10.0
             max_iter = 1000
@@ -187,7 +154,6 @@ with tab1:
                 st.error("O cálculo não convergiu.")
 
         elif num_camadas == 2:
-            # --- Duas camadas ---
             L1, L2 = espessuras
 
             def sistema(vars):
@@ -212,7 +178,6 @@ with tab1:
                 st.error("Não foi possível resolver o sistema para duas camadas.")
 
         elif num_camadas == 3:
-            # --- Três camadas ---
             L1, L2, L3 = espessuras
 
             def sistema(vars):
@@ -240,6 +205,43 @@ with tab1:
             else:
                 st.error("Não foi possível resolver o sistema para três camadas.")
 
+    with st.expander("Área restrita - Cadastro/Gerenciamento de Isolantes"):
+        senha = st.text_input("Digite a senha para acessar", type="password")
+        if senha == st.secrets["ADMIN_PASSWORD"]:
+            modo = st.radio("Escolha uma ação", ["Cadastrar novo isolante", "Excluir isolante"])
+
+            if modo == "Cadastrar novo isolante":
+                nome = st.text_input("Nome do isolante")
+                densidade = st.number_input("Densidade (kg/m³)", min_value=0.0, value=100.0)
+                tipo_eq = st.selectbox("Tipo de equação k(T)", ["Linear (a + b*T)", "Polinomial (a + b*T + c*T²)", "Exponencial (a * exp(b*T))"])
+
+                if tipo_eq == "Linear (a + b*T)":
+                    a = st.number_input("a")
+                    b = st.number_input("b")
+                    k_func = f"{a} + {b}*T"
+                elif tipo_eq == "Polinomial (a + b*T + c*T²)":
+                    a = st.number_input("a")
+                    b = st.number_input("b")
+                    c = st.number_input("c")
+                    k_func = f"{a} + {b}*T + {c}*T**2"
+                else:
+                    a = st.number_input("a")
+                    b = st.number_input("b")
+                    k_func = f"{a} * math.exp({b}*T)"
+
+                if st.button("Salvar isolante"):
+                    worksheet.append_row([nome, densidade, k_func])
+                    st.success("Isolante cadastrado com sucesso!")
+
+            elif modo == "Excluir isolante":
+                df = pd.DataFrame(worksheet.get_all_records())
+                nomes = df['nome'].tolist()
+                nome_excluir = st.selectbox("Selecione o isolante para excluir", nomes)
+                if st.button("Excluir isolante"):
+                    celula = worksheet.find(nome_excluir)
+                    worksheet.delete_rows(celula.row)
+                    st.success("Isolante excluído com sucesso!")
+
 with tab2:
     st.markdown("### Em breve: Cálculo com retorno financeiro")
     st.info("Esta aba será utilizada para calcular a economia financeira com o uso de isolamento térmico.")
@@ -250,4 +252,3 @@ st.markdown("""
 > 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
