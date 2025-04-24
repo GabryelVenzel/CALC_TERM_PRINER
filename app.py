@@ -175,20 +175,17 @@ with tab1:
     isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
     k_func_str = isolante['k_func']
 
-    qtd_camadas = st.selectbox("Quantidade de Camadas", [1, 2, 3])
-    Ls = []
-    for i in range(qtd_camadas):
-        L_mm = st.number_input(f"Espessura da camada {i+1} [mm]", value=51.0, key=f"espessura_{i}")
-        Ls.append(L_mm / 1000)
+    n_camadas = st.selectbox("Quantidade de Camadas", [1, 2, 3], index=0)
+    espessuras = [st.number_input(f"Espessura da camada {i+1} [mm]", value=51.0) / 1000 for i in range(n_camadas)]
 
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
     if st.button("Calcular Temperatura da Face Fria"):
-        resultados = []
-        T_entrada = Tq
+        Tf_list = []
+        T_interna = Tq
 
-        for idx, L in enumerate(Ls):
+        for camada, L in enumerate(espessuras):
             Tf = To + 10.0
             max_iter = 1000
             step = 100.0
@@ -197,16 +194,17 @@ with tab1:
             erro_anterior = None
             convergiu = False
 
-            for _ in range(max_iter):
-                T_media = (T_entrada + Tf) / 2
+            for i in range(max_iter):
+                T_media = (T_interna + Tf) / 2
                 k = calcular_k(k_func_str, T_media)
                 if k is None:
                     break
 
-                q_conducao = k * (T_entrada - Tf) / L
-
+                q_conducao = k * (T_interna - Tf) / L
                 Tf_K = Tf + 273.15
                 To_K = To + 273.15
+                Tq_K = Tq + 273.15
+
                 h_conv = calcular_h_conv(Tf, To, L)
                 q_rad = e * sigma * (Tf_K**4 - To_K**4)
                 q_conv = h_conv * (Tf - To)
@@ -223,18 +221,15 @@ with tab1:
 
                 Tf += step if erro > 0 else -step
                 erro_anterior = erro
+                time.sleep(0.01)
 
-            if convergiu:
-                resultados.append((idx+1, Tf))
-                T_entrada = Tf
-            else:
-                st.error(f"\U0000274C O cálculo da camada {idx+1} não convergiu.")
-                break
+            Tf_list.append(Tf)
+            T_interna = Tf
 
-        if resultados:
-            st.subheader("Resultados")
-            for camada, temp in resultados:
-                st.success(f"\U00002705 Temperatura da face fria da camada {camada}: {temp:.1f} °C".replace('.', ','))
+        st.subheader("Resultados")
+
+        for i, Tf in enumerate(Tf_list):
+            st.success(f"\U00002705 Temperatura após camada {i+1}: {Tf:.1f} °C".replace('.', ','))
 
 with tab2:
     st.markdown("### Em breve: Cálculo com retorno financeiro")
