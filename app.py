@@ -96,56 +96,6 @@ tab1, tab2 = st.tabs(["Cálculo de face fria", "Cálculo Financeiro"])
 with tab1:
     isolantes = carregar_isolantes()
     materiais = [i['nome'] for i in isolantes]
-
-    # --- ÁREA RESTRITA DE CADASTRO/GERENCIAMENTO ---
-    st.markdown("### Área restrita - Cadastro/Gerenciamento de Isolantes")
-    senha = st.text_input("Digite a senha para acessar esta área:", type="password")
-    if senha == "Priner123":
-        modo = st.radio("Modo", ["Cadastrar", "Excluir"], horizontal=True)
-
-        tipo_equacao = st.selectbox("Selecione o tipo de função k(T):", [
-            "k = a",
-            "k = a + b*T",
-            "k = a + b*T + c*T²"
-        ])
-
-        nome = st.text_input("Nome do isolante")
-        densidade = st.number_input("Densidade [kg/m³]", min_value=0.0)
-
-        if tipo_equacao == "k = a":
-            a = st.number_input("a")
-            k_func = f"{a}"
-        elif tipo_equacao == "k = a + b*T":
-            a = st.number_input("a")
-            b = st.number_input("b")
-            k_func = f"{a} + {b}*T"
-        else:
-            a = st.number_input("a")
-            b = st.number_input("b")
-            c = st.number_input("c")
-            k_func = f"{a} + {b}*T + {c}*T**2"
-
-        if modo == "Cadastrar":
-            if st.button("Cadastrar Isolante"):
-                isolantes_existentes = carregar_isolantes()
-                if nome and not any(i['nome'].lower() == nome.lower() for i in isolantes_existentes):
-                    worksheet.append_row([nome, densidade, k_func])
-                    st.success("Isolante cadastrado com sucesso!")
-                    st.experimental_rerun()
-                else:
-                    st.warning("Nome já existe ou inválido.")
-
-        elif modo == "Excluir":
-            nomes = [i['nome'] for i in carregar_isolantes()]
-            nome_excluir = st.selectbox("Selecione o isolante para excluir", nomes)
-            if st.button("Excluir Isolante"):
-                df = pd.DataFrame(worksheet.get_all_records())
-                idx = df[df['nome'] == nome_excluir].index
-                if not idx.empty:
-                    worksheet.delete_rows(idx[0]+2)
-                    st.success("Isolante excluído com sucesso!")
-                    st.experimental_rerun()
-
     material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
     isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
     k_func_str = isolante['k_func']
@@ -162,7 +112,6 @@ with tab1:
 
     if st.button("Calcular Temperaturas de Face Fria"):
         if num_camadas == 1:
-            # --- Uma camada ---
             L_total = espessuras[0]
             Tf = To + 10.0
             max_iter = 1000
@@ -205,7 +154,6 @@ with tab1:
                 st.error("O cálculo não convergiu.")
 
         elif num_camadas == 2:
-            # --- Duas camadas ---
             L1, L2 = espessuras
 
             def sistema(vars):
@@ -230,7 +178,6 @@ with tab1:
                 st.error("Não foi possível resolver o sistema para duas camadas.")
 
         elif num_camadas == 3:
-            # --- Três camadas ---
             L1, L2, L3 = espessuras
 
             def sistema(vars):
@@ -262,9 +209,45 @@ with tab2:
     st.markdown("### Em breve: Cálculo com retorno financeiro")
     st.info("Esta aba será utilizada para calcular a economia financeira com o uso de isolamento térmico.")
 
+# --- EXPANDER PARA CADASTRO/GERENCIAMENTO ---
+with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", expanded=False):
+    senha = st.text_input("Digite a senha para acessar:", type="password")
+    if senha == "Priner123":
+        modo = st.radio("Modo", ["Cadastrar novo isolante", "Excluir isolante"])
+        if modo == "Cadastrar novo isolante":
+            nome = st.text_input("Nome do isolante")
+            tipo_eq = st.selectbox("Tipo de equação k(T)", ["Constante", "Linear", "Polinomial 2º grau"])
+            if tipo_eq == "Constante":
+                c1 = st.number_input("k (constante)", value=0.05)
+                k_func = f"{c1}"
+            elif tipo_eq == "Linear":
+                c1 = st.number_input("k = a + b·T → a", value=0.05)
+                c2 = st.number_input("k = a + b·T → b", value=0.0001)
+                k_func = f"{c1} + {c2}*T"
+            else:
+                c1 = st.number_input("k = a + b·T + c·T² → a", value=0.05)
+                c2 = st.number_input("k = a + b·T + c·T² → b", value=0.0001)
+                c3 = st.number_input("k = a + b·T + c·T² → c", value=0.000001)
+                k_func = f"{c1} + {c2}*T + {c3}*T**2"
+
+            if st.button("Cadastrar isolante"):
+                worksheet.append_row([nome, k_func])
+                st.success("Isolante cadastrado com sucesso!")
+
+        elif modo == "Excluir isolante":
+            isolantes = carregar_isolantes()
+            nomes = [i["nome"] for i in isolantes]
+            selecao = st.selectbox("Selecione o isolante para excluir", nomes)
+            if st.button("Excluir isolante"):
+                df = pd.DataFrame(worksheet.get_all_records())
+                indice = df[df["nome"] == selecao].index[0] + 2  # +2 porque a planilha é 1-indexada e tem cabeçalho
+                worksheet.delete_rows(indice)
+                st.success("Isolante excluído com sucesso!")
+
 st.markdown("""
 ---
 > **Observação:** Emissividade de **0.9** considerada no cálculo.
 > 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
+
