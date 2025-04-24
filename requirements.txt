@@ -1,0 +1,4 @@
+﻿streamlit==1.44.1
+pillow==11.2.1
+gspread
+oauth2client
