@@ -178,11 +178,11 @@ k_func_str = isolante['k_func']
 # --- ENTRADAS ---
 col1, col2 = st.columns(2)
 with col1:
-    numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
-with col2:
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
+with col2:
+    To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
-To = st.number_input("Temperatura ambiente [°C]", value=30.0)
+numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
 
 espessuras = []
 
