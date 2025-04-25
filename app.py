@@ -282,8 +282,6 @@ if st.session_state.convergiu is not None:
 
 # --- TEMPERATURAS INTERMEDIÁRIAS (se houver mais de 1 camada) ---
 if st.session_state.convergiu and numero_camadas > 1:
-    st.markdown("### Temperaturas Intermediárias entre as Camadas")
-
     delta_T = Tq - st.session_state.Tf
     frac_espessuras = [e / sum(espessuras) for e in espessuras]
 
