@@ -209,6 +209,7 @@ elif numero_camadas == 3:
 
 L_total = sum(espessuras) / 1000
 
+# --- BOTÃO DE CALCULAR ---
 if st.button("Calcular Temperatura da Face Fria"):
     Tf = To + 10.0
     max_iter = 1000
@@ -216,6 +217,8 @@ if st.button("Calcular Temperatura da Face Fria"):
     min_step = 0.01
     tolerancia = 1.0
     progress = st.progress(0)
+    convergiu = False
+    q_transferencia = None
     erro_anterior = None
 
     for i in range(max_iter):
@@ -239,9 +242,7 @@ if st.button("Calcular Temperatura da Face Fria"):
         erro = q_conducao - q_transferencia
 
         if abs(erro) < tolerancia:
-            st.session_state.convergiu = True
-            st.session_state.Tf = Tf
-            st.session_state.q_transferencia = q_transferencia
+            convergiu = True
             break
 
         if erro_anterior is not None and erro * erro_anterior < 0:
@@ -250,30 +251,29 @@ if st.button("Calcular Temperatura da Face Fria"):
         Tf += step if erro > 0 else -step
         erro_anterior = erro
         time.sleep(0.01)
-    else:
-        st.session_state.convergiu = False
 
-if st.session_state.convergiu is not None:
+    # --- RESULTADOS ---
     st.subheader("Resultados")
 
-    if st.session_state.convergiu:
-        st.success(f"\U00002705 Temperatura da face fria: {st.session_state.Tf:.1f} °C".replace('.', ','))
+    if convergiu:
+        st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
     else:
         st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
 
-    if st.session_state.q_transferencia is not None:
-        perda_com = st.session_state.q_transferencia / 1000
+    if q_transferencia is not None:
+        perda_com = q_transferencia / 1000
         st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
 
-        hr_sem = e * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
+        hr_sem = e * sigma * (Tq_K**4 - To_K**4)
         h_total_sem = calcular_h_conv(Tq, To, L_total) + hr_sem / (Tq - To)
         q_sem_isolante = h_total_sem * (Tq - To)
 
         perda_sem = q_sem_isolante / 1000
         st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
 
-        st.markdown(f"**Espessura total considerada:** {L_total*1000:.1f} mm".replace('.', ','))
-
+    # Mostrando espessura total usada:
+    st.markdown(f"**Espessura total considerada:** {L_total*1000:.1f} mm".replace('.', ','))
+    
 # --- OBSERVAÇÃO ---
 st.markdown("""
 ---
