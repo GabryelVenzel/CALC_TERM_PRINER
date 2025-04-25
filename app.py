@@ -214,6 +214,7 @@ L_total = sum(espessuras) / 1000
 # Definição fora do botão (evita NameError)
 convergiu = None
 q_transferencia = None
+
 if st.button("Calcular Temperatura da Face Fria"):
     Tf = To + 10.0
     max_iter = 1000
@@ -258,8 +259,6 @@ if st.button("Calcular Temperatura da Face Fria"):
 
     # --- RESULTADOS ---
     # Definição fora do botão (evita NameError)
-    convergiu = None
-    q_transferencia = None
 
     st.subheader("Resultados")
 
