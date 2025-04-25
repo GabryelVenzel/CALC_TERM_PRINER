@@ -1,3 +1,75 @@
+import streamlit as st
+import math
+import time
+from PIL import Image
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
+
+# --- CONFIGURAÇÕES GERAIS ---
+st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
+
+# --- ESTILO VISUAL ---
+st.markdown("""
+<style>
+    .main {
+        background-color: #FFFFFF;
+    }
+    .block-container {
+        padding-top: 2rem;
+    }
+    h1, h2, h3, h4 {
+        color: #003366;
+    }
+    .stButton>button {
+        background-color: #198754;
+        color: white;
+        border-radius: 8px;
+        height: 3em;
+        width: 100%;
+    }
+    input[type="radio"], input[type="checkbox"] {
+        accent-color: #003366;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- LOGO ---
+logo = Image.open("logo.png")
+st.image(logo, width=300)
+
+# --- CONECTAR COM GOOGLE SHEETS ---
+import json
+
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+gcp_json = json.loads(st.secrets["GCP_JSON"])
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(gcp_json, scope)
+client = gspread.authorize(credentials)
+sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1W1JHXAnGJeWbGVK0AmORux5I7CYTEwoBIvBfVKO40aY/edit#gid=0")
+worksheet = sheet.worksheet("Isolantes")
+
+# --- FUNÇÕES AUXILIARES ---
+def carregar_isolantes():
+    df = pd.DataFrame(worksheet.get_all_records())
+    return df.to_dict(orient="records")
+
+def cadastrar_isolante(nome, k_func):
+    worksheet.append_row([nome, k_func])
+
+def excluir_isolante(nome):
+    cell = worksheet.find(nome)
+    if cell:
+        worksheet.delete_rows(cell.row)
+
+def calcular_k(k_func_str, T_media):
+    try:
+        if isinstance(k_func_str, (int, float)):
+            return k_func_str
+        return eval(str(k_func_str), {"math": math, "T": T_media})
+    except Exception as ex:
+        st.error(f"Erro ao calcular k(T): {ex}")
+        return None
+
 # --- CONSTANTES DE RADIAÇÃO --- 
 e = 0.9
 sigma = 5.67e-8
@@ -180,6 +252,3 @@ st.markdown("""
 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
-""")
-
