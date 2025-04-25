@@ -8,6 +8,12 @@ import pandas as pd
 import json
 from scipy.optimize import fsolve
 
+# --- EXIBIR INTERFACE DE CADASTRO DE ISOLANTES ---
+# Isso deve ser feito antes do cálculo, mantendo a aba de cadastro visível.
+st.header("Cadastro de Isolantes")
+nome_isolante = st.text_input("Nome do Isolante")
+k_func_str = st.text_area("Equação k(T)", "Informe a equação k(T)")
+
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
 
