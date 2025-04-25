@@ -210,12 +210,10 @@ elif numero_camadas == 3:
 # Espessura total [m]
 L_total = sum(espessuras) / 1000
 
-
-convergiu = False
-q_transferencia = None
-Tf = None
-
 # --- BOTÃO DE CALCULAR ---
+# Definição fora do botão (evita NameError)
+convergiu = None
+q_transferencia = None
 if st.button("Calcular Temperatura da Face Fria"):
     Tf = To + 10.0
     max_iter = 1000
