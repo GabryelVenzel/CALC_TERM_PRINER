@@ -49,10 +49,15 @@ client = gspread.authorize(credentials)
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1W1JHXAnGJeWbGVK0AmORux5I7CYTEwoBIvBfVKO40aY/edit#gid=0")
 worksheet = sheet.worksheet("Isolantes")
 
-# --- FUNÇÕES AUXILIARES ---
-def carregar_isolantes():
-    df = pd.DataFrame(worksheet.get_all_records())
-    return df.to_dict(orient="records")
+# --- FUNÇÕES AUXILIARES PARA DADOS ---
+@st.cache_data
+def carregar_dados():
+    dados = worksheet.get_all_records()
+    return pd.DataFrame(dados)
+
+def salvar_dados(df):
+    worksheet.clear()
+    worksheet.update([df.columns.values.tolist()] + df.values.tolist())
 
 def calcular_k(k_func_str, T_media):
     try:
