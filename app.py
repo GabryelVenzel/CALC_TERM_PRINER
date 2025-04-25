@@ -6,6 +6,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
+from scipy.optimize import fsolve
 
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -86,80 +87,68 @@ def calcular_h_conv(Tf, To, L):
         Nu = 0.15 * Ra**(1/3)
     return Nu * k_ar / L
 
+# --- NOVO CÁLCULO COM RESOLUÇÃO DIRETA ---
+def calcular_temperaturas_direto(num_camadas, espessuras, Tq, To, k_func_str):
+    def sistema(vars):
+        if num_camadas == 1:
+            Tf = vars[0]
+            Tm = (Tq + Tf) / 2
+            k = calcular_k(k_func_str, Tm)
+            q = k * (Tq - Tf) / espessuras[0]
+        elif num_camadas == 2:
+            T1, Tf = vars
+            k1 = calcular_k(k_func_str, (Tq + T1) / 2)
+            k2 = calcular_k(k_func_str, (T1 + Tf) / 2)
+            q1 = k1 * (Tq - T1) / espessuras[0]
+            q2 = k2 * (T1 - Tf) / espessuras[1]
+            q = (q1 + q2) / 2
+        else:  # 3 camadas
+            T1, T2, Tf = vars
+            k1 = calcular_k(k_func_str, (Tq + T1) / 2)
+            k2 = calcular_k(k_func_str, (T1 + T2) / 2)
+            k3 = calcular_k(k_func_str, (T2 + Tf) / 2)
+            q1 = k1 * (Tq - T1) / espessuras[0]
+            q2 = k2 * (T1 - T2) / espessuras[1]
+            q3 = k3 * (T2 - Tf) / espessuras[2]
+            q = (q1 + q2 + q3) / 3
+
+        Tf_K = Tf + 273.15
+        To_K = To + 273.15
+        h_conv = calcular_h_conv(Tf, To, sum(espessuras))
+        q_rad = e * sigma * (Tf_K**4 - To_K**4)
+        q_conv = h_conv * (Tf - To)
+        q_perda = q_conv + q_rad
+
+        if num_camadas == 1:
+            return [q - q_perda]
+        elif num_camadas == 2:
+            return [q1 - q2, q - q_perda]
+        else:
+            return [q1 - q2, q2 - q3, q - q_perda]
+
+    if num_camadas == 1:
+        sol = fsolve(sistema, [To])
+        return [Tq, sol[0]]
+    elif num_camadas == 2:
+        sol = fsolve(sistema, [To + 10, To])
+        return [Tq, sol[0], sol[1]]
+    else:
+        sol = fsolve(sistema, [Tq - 10, To + 10, To])
+        return [Tq, sol[0], sol[1], sol[2]]
+
 # --- CONSTANTES ---
 e = 0.9
 sigma = 5.67e-8
 
-# --- ACESSO ---
-with st.sidebar.expander("Opções", expanded=False):
-    senha = st.text_input("Digite a senha", type="password")
-    if senha == "Priner123":
-        aba = st.radio("Escolha a opção", ["Cadastrar Isolante", "Gerenciar Isolantes"])
-        if aba == "Cadastrar Isolante":
-            st.subheader("Cadastrar Novo Isolante")
-            nome = st.text_input("Nome do Isolante")
-            modelo_k = st.radio("Modelo de função k(T)", ["Constante", "Linear", "Polinomial", "Exponencial"])
-            k_func = ""
-            equacao_latex = ""
-            if modelo_k == "Constante":
-                k0 = st.number_input("k₀", value=0.035, format="%.6f")
-                k_func = f"{k0}"
-                equacao_latex = f"k(T) = {str(k0).replace('.', ',')}"
-            elif modelo_k == "Linear":
-                k0 = st.number_input("k₀", value=0.030, format="%.6f")
-                k1 = st.number_input("k₁ (coef. de T)", value=0.0001, format="%.6f")
-                k_func = f"{k0} + {k1} * T"
-                equacao_latex = f"k(T) = {str(k0).replace('.', ',')} + {str(k1).replace('.', ',')} \\cdot T"
-            elif modelo_k == "Polinomial":
-                k0 = st.number_input("k₀", value=0.025, format="%.6f")
-                k1 = st.number_input("k₁ (T¹)", value=0.0001, format="%.6f")
-                k2 = st.number_input("k₂ (T²)", value=0.0, format="%.6f")
-                k3 = st.number_input("k₃ (T³)", value=0.0, format="%.6f")
-                k4 = st.number_input("k₄ (T⁴)", value=0.0, format="%.6f")
-                k_func = f"{k0} + {k1}*T + {k2}*T**2 + {k3}*T**3 + {k4}*T**4"
-                equacao_latex = (
-                    f"k(T) = {str(k0).replace('.', ',')} + {str(k1).replace('.', ',')} \\cdot T + "
-                    f"{str(k2).replace('.', ',')} \\cdot T^2 + {str(k3).replace('.', ',')} \\cdot T^3 + "
-                    f"{str(k4).replace('.', ',')} \\cdot T^4"
-                )
-            elif modelo_k == "Exponencial":
-                a = st.number_input("a (coeficiente)", value=0.0387, format="%.6f")
-                b = st.number_input("b (expoente)", value=0.0019, format="%.6f")
-                k_func = f"{a} * math.exp({b} * T)"
-                equacao_latex = f"k(T) = {str(a).replace('.', ',')} \\cdot e^{{{str(b).replace('.', ',')} \\cdot T}}"
-            if equacao_latex:
-                st.markdown("**Pré-visualização da função:**")
-                st.latex(equacao_latex)
-            if st.button("Cadastrar"):
-                if nome.strip() == "":
-                    st.error("Digite um nome para o isolante.")
-                else:
-                    isolantes_existentes = [i["nome"] for i in carregar_isolantes()]
-                    if nome in isolantes_existentes:
-                        st.warning("Já existe um isolante com esse nome.")
-                    else:
-                        cadastrar_isolante(nome, k_func)
-                        st.success(f"Isolante {nome} cadastrado com sucesso!")
-        elif aba == "Gerenciar Isolantes":
-            st.subheader("Isolantes Cadastrados")
-            isolantes = carregar_isolantes()
-            for i in isolantes:
-                st.write(f"**{i['nome']}**")
-                if st.button(f"Excluir {i['nome']}"):
-                    excluir_isolante(i['nome'])
-                    st.success(f"Isolante {i['nome']} excluído com sucesso!")
-
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
 
-# --- SELEÇÃO DO MATERIAL --- 
 isolantes = carregar_isolantes()
 materiais = [i['nome'] for i in isolantes]
 material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
 isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
 k_func_str = isolante['k_func']
 
-# --- ENTRADAS ---
 num_camadas = st.selectbox("Número de camadas de isolante", [1, 2, 3], index=0)
 espessuras_mm = [st.number_input(f"Espessura da camada {i+1} [mm]", value=51.0) for i in range(num_camadas)]
 espessuras = [esp / 1000 for esp in espessuras_mm]
@@ -167,55 +156,26 @@ Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
 To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
 if st.button("Calcular Temperatura da Face Fria"):
-    max_iter = 1000
-    step = 50.0
-    min_step = 0.01
-    tolerancia = 1.0
-    progress = st.progress(0)
-    convergiu = False
-    temperaturas = [Tq] + [To for _ in range(num_camadas)]
-
-    for i in range(max_iter):
-        progress.progress(i / max_iter)
-        ks = []
-        q_vals = []
-        for j in range(num_camadas):
-            Tm = (temperaturas[j] + temperaturas[j+1]) / 2
-            k = calcular_k(k_func_str, Tm)
-            if k is None:
-                break
-            ks.append(k)
-            q = k * (temperaturas[j] - temperaturas[j+1]) / espessuras[j]
-            q_vals.append(q)
-        erro = max(q_vals) - min(q_vals)
-        if abs(erro) < tolerancia:
-            convergiu = True
-            break
-        for j in range(1, num_camadas):
-            temperaturas[j] += step if q_vals[j-1] > q_vals[j] else -step
-        step = max(min_step, step * 0.95)
-        time.sleep(0.01)
-
+    temperaturas = calcular_temperaturas_direto(num_camadas, espessuras, Tq, To, k_func_str)
+    Tf = temperaturas[-1]
     st.subheader("Resultados")
-    if convergiu:
-        Tf = temperaturas[-1]
-        st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
-        Tf_K = Tf + 273.15
-        To_K = To + 273.15
-        Tq_K = Tq + 273.15
-        h_conv = calcular_h_conv(Tf, To, sum(espessuras))
-        q_rad = e * sigma * (Tf_K**4 - To_K**4)
-        q_conv = h_conv * (Tf - To)
-        q_transferencia = q_conv + q_rad
-        perda_com = q_transferencia / 1000
-        st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
-        hr_sem = e * sigma * (Tq_K**4 - To_K**4)
-        h_total_sem = calcular_h_conv(Tq, To, sum(espessuras)) + hr_sem / (Tq - To)
-        q_sem_isolante = h_total_sem * (Tq - To)
-        perda_sem = q_sem_isolante / 1000
-        st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
-    else:
-        st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
+    st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
+
+    Tf_K = Tf + 273.15
+    To_K = To + 273.15
+    Tq_K = Tq + 273.15
+    h_conv = calcular_h_conv(Tf, To, sum(espessuras))
+    q_rad = e * sigma * (Tf_K**4 - To_K**4)
+    q_conv = h_conv * (Tf - To)
+    q_transferencia = q_conv + q_rad
+    perda_com = q_transferencia / 1000
+    st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
+
+    hr_sem = e * sigma * (Tq_K**4 - To_K**4)
+    h_total_sem = calcular_h_conv(Tq, To, sum(espessuras)) + hr_sem / (Tq - To)
+    q_sem_isolante = h_total_sem * (Tq - To)
+    perda_sem = q_sem_isolante / 1000
+    st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
 
 # --- OBSERVAÇÃO ---
 st.markdown("""
@@ -224,3 +184,4 @@ st.markdown("""
 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
+
