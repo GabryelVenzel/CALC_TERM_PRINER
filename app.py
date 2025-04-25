@@ -51,9 +51,9 @@ worksheet = sheet.worksheet("Isolantes")
 
 # --- FUNÇÕES AUXILIARES PARA DADOS ---
 @st.cache_data
-def carregar_isolantes():
+def carregar_dados():
     dados = worksheet.get_all_records()
-    return dados  # já retorna como lista de dicionários, ideal para uso direto
+    return pd.DataFrame(dados)
 
 def salvar_dados(df):
     worksheet.clear()
