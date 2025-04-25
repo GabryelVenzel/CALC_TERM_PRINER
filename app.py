@@ -253,7 +253,7 @@ if st.button("Calcular Temperatura da Face Fria"):
         erro_anterior = erro
         time.sleep(0.01)
 
- # --- RESULTADOS ---
+    # --- RESULTADOS ---
     st.subheader("Resultados")
 
     if convergiu:
