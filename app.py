@@ -105,7 +105,7 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
         @st.cache_data
         def carregar_dados():
             url = f"https://docs.google.com/spreadsheets/d/1W1JHXAnGJeWbGVK0AmORux5I7CYTEwoBIvBfVKO40aY/edit#gid=0/gviz/tq?tqx=out:csv&sheet=Isolantes"
-worksheet = sheet.worksheet("Isolantes")
+            worksheet = sheet.worksheet("Isolantes")
             return pd.read_csv(url)
 
         def salvar_dados(df):
