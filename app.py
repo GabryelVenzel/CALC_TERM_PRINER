@@ -258,7 +258,20 @@ if st.button("Calcular Temperatura da Face Fria"):
 
     if convergiu:
         st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
-    else:
+
+      # Cálculo das temperaturas intermediárias (faces frias entre camadas)
+      T_intermediarias = []
+      T_atual = Tq
+      for espessura in espessuras[:-1]:  # não calcula para a última camada
+          L_m = espessura / 1000  # mm para metros
+          T_media = (T_atual + Tf) / 2
+          k_local = calcular_k(k_func_str, T_media)
+          delta_T = q_transferencia * L_m / k_local
+          T_nova = T_atual - delta_T
+          T_intermediarias.append(T_nova)
+          T_atual = T_nova
+          
+      else:
         st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
 
     if q_transferencia is not None:
