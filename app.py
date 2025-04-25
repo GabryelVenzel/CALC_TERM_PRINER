@@ -104,7 +104,6 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
 
         if aba == "Cadastrar Isolante":
             nome = st.text_input("Nome do isolante")
-            densidade = st.number_input("Densidade (kg/m³)", min_value=0.0, format="%.2f")
             tipo_equacao = st.selectbox("Tipo de equação para k(T):", ["a + b*T", "a + b*T + c*T²", "a + b*log(T)"])
 
             if tipo_equacao == "a + b*T":
@@ -124,7 +123,7 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
                 tipo = "logarítmica"
 
             if st.button("Cadastrar isolante"):
-                novo = pd.DataFrame([[nome, densidade, tipo, a, b, c]], columns=df.columns)
+                novo = pd.DataFrame([[nome, tipo, a, b, c]], columns=df.columns)
                 df = pd.concat([df, novo], ignore_index=True)
                 st.success("Isolante cadastrado com sucesso!")
 
@@ -204,5 +203,3 @@ st.markdown("""
 > 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
-
