@@ -279,8 +279,6 @@ if st.session_state.convergiu is not None:
         perda_sem = q_sem_isolante / 1000
         st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
 
-    st.markdown(f"**Espessura total considerada:** {L_total*1000:.1f} mm".replace('.', ','))
-
 # --- OBSERVAÇÃO ---
 st.markdown("""
 ---
