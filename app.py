@@ -111,21 +111,29 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
                 b = st.number_input("b", format="%.6f")
                 c = 0
                 tipo = "linear"
+                # Representação matemática da equação
+                st.latex(f"k(T) = {a:.6f} + {b:.6f} T")
             elif tipo_equacao == "Polinômio de segundo grau":
                 a = st.number_input("a", format="%.6f")
                 b = st.number_input("b", format="%.6f")
                 c = st.number_input("c", format="%.6f")
                 tipo = "polinomial"
+                # Representação matemática da equação
+                st.latex(f"k(T) = {a:.6f} + {b:.6f} T + {c:.6f} T^2")
             elif tipo_equacao == "Exponencial":
                 a = st.number_input("a", format="%.6f")
                 b = st.number_input("b", format="%.6f")
                 c = 0
                 tipo = "exponencial"
+                # Representação matemática da equação
+                st.latex(f"k(T) = {a:.6f} e^{{{b:.6f} T}}")
             else:  # Constante
                 a = st.number_input("Valor da constante k(T)", format="%.6f")
                 b = 0
                 c = 0
                 tipo = "constante"
+                # Representação matemática da equação
+                st.latex(f"k(T) = {a:.6f}")
 
             if st.button("Cadastrar isolante"):
                 novo = pd.DataFrame([[nome, tipo, a, b, c]], columns=df.columns)
