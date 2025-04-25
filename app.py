@@ -166,6 +166,13 @@ with st.sidebar.expander("Opções", expanded=False):
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
 
+if 'convergiu' not in st.session_state:
+    st.session_state.convergiu = None
+if 'q_transferencia' not in st.session_state:
+    st.session_state.q_transferencia = None
+if 'Tf' not in st.session_state:
+    st.session_state.Tf = None
+
 isolantes = carregar_isolantes()
 materiais = [i['nome'] for i in isolantes]
 material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
@@ -246,13 +253,14 @@ if st.button("Calcular Temperatura da Face Fria"):
         erro_anterior = erro
         time.sleep(0.01)
 
-    # --- RESULTADOS ---
-    st.subheader("Resultados")
-
+    # Exibir resultado do cálculo
     if convergiu:
         st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
     else:
         st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
+
+    # --- RESULTADOS ---
+    st.subheader("Resultados")
 
     if q_transferencia is not None:
         perda_com = q_transferencia / 1000
@@ -265,6 +273,7 @@ if st.button("Calcular Temperatura da Face Fria"):
         perda_sem = q_sem_isolante / 1000
         st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
 
+    # Mostrando espessura total usada:
     st.markdown(f"**Espessura total considerada:** {L_total*1000:.1f} mm".replace('.', ','))
 
 # --- OBSERVAÇÃO ---
@@ -274,3 +283,4 @@ st.markdown("""
 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
+
