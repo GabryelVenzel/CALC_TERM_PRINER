@@ -136,8 +136,21 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
                 st.latex(f"k(T) = {a:.6f}")
 
             if st.button("Cadastrar isolante"):
-                novo = pd.DataFrame([[nome, tipo, a, b, c]], columns=df.columns)
-                df = pd.concat([df, novo], ignore_index=True)
+                # Recarregar os dados do Google Sheets
+                df = carregar_isolantes()
+
+                # Adicionar o novo isolante no DataFrame
+                novo_isolante = pd.DataFrame([[nome, tipo, a, b, c]], columns=["nome", "tipo", "a", "b", "c"])
+                df = pd.concat([df, novo_isolante], ignore_index=True)
+
+                # Atualizar o Google Sheets com os novos dados
+                for i, row in df.iterrows():
+                    worksheet.update_cell(i + 2, 1, row["nome"])
+                    worksheet.update_cell(i + 2, 2, row["tipo"])
+                    worksheet.update_cell(i + 2, 3, row["a"])
+                    worksheet.update_cell(i + 2, 4, row["b"])
+                    worksheet.update_cell(i + 2, 5, row["c"])
+
                 st.success("Isolante cadastrado com sucesso!")
 
         elif aba == "Excluir Isolante":
