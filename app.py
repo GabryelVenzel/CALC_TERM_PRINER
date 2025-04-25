@@ -175,11 +175,40 @@ material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
 isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
 k_func_str = isolante['k_func']
 
-# --- ENTRADAS --- 
-L_mm = st.number_input("Espessura do isolante [mm]", value=51.0)
-L = L_mm / 1000
-Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
+# --- ENTRADAS ---
+col1, col2 = st.columns(2)
+with col1:
+    numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
+with col2:
+    Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
+
 To = st.number_input("Temperatura ambiente [°C]", value=30.0)
+
+espessuras = []
+
+# --- ESPESSURAS INDIVIDUAIS ---
+if numero_camadas == 1:
+    L1 = st.number_input("Espessura da camada 1 [mm]", value=51.0, key="L1")
+    espessuras.append(L1)
+elif numero_camadas == 2:
+    col1, col2 = st.columns(2)
+    with col1:
+        L1 = st.number_input("Espessura da camada 1 [mm]", value=30.0, key="L1")
+    with col2:
+        L2 = st.number_input("Espessura da camada 2 [mm]", value=30.0, key="L2")
+    espessuras.extend([L1, L2])
+elif numero_camadas == 3:
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        L1 = st.number_input("Espessura da camada 1 [mm]", value=20.0, key="L1")
+    with col2:
+        L2 = st.number_input("Espessura da camada 2 [mm]", value=20.0, key="L2")
+    with col3:
+        L3 = st.number_input("Espessura da camada 3 [mm]", value=20.0, key="L3")
+    espessuras.extend([L1, L2, L3])
+
+# Espessura total [m]
+L_total = sum(espessuras) / 1000
 
 # --- BOTÃO DE CALCULAR ---
 if st.button("Calcular Temperatura da Face Fria"):
@@ -200,13 +229,13 @@ if st.button("Calcular Temperatura da Face Fria"):
         if k is None:
             break
 
-        q_conducao = k * (Tq - Tf) / L
+        q_conducao = k * (Tq - Tf) / L_total
 
         Tf_K = Tf + 273.15
         To_K = To + 273.15
         Tq_K = Tq + 273.15
 
-        h_conv = calcular_h_conv(Tf, To, L)
+        h_conv = calcular_h_conv(Tf, To, L_total)
         q_rad = e * sigma * (Tf_K**4 - To_K**4)
         q_conv = h_conv * (Tf - To)
         q_transferencia = q_conv + q_rad
@@ -237,11 +266,14 @@ if st.button("Calcular Temperatura da Face Fria"):
         st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
 
         hr_sem = e * sigma * (Tq_K**4 - To_K**4)
-        h_total_sem = calcular_h_conv(Tq, To, L) + hr_sem / (Tq - To)
+        h_total_sem = calcular_h_conv(Tq, To, L_total) + hr_sem / (Tq - To)
         q_sem_isolante = h_total_sem * (Tq - To)
 
         perda_sem = q_sem_isolante / 1000
         st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
+
+    # Mostrando espessura total usada:
+    st.markdown(f"**Espessura total considerada:** {L_total*1000:.1f} mm".replace('.', ','))
 
 # --- OBSERVAÇÃO ---
 st.markdown("""
