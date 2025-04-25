@@ -252,13 +252,13 @@ if st.button("Calcular Temperatura da Face Fria"):
         erro_anterior = erro
         time.sleep(0.01)
 
+           if convergiu:
+              st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
+           else:
+              st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
+
     # --- RESULTADOS ---
     st.subheader("Resultados")
-
-    if convergiu:
-        st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
-    else:
-        st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
 
     if q_transferencia is not None:
         perda_com = q_transferencia / 1000
