@@ -223,7 +223,6 @@ if st.button("Calcular Temperatura da Face Fria"):
     tolerancia = 1.0
     progress = st.progress(0)
     q_transferencia = None
-    convergiu = False
     erro_anterior = None
 
     for i in range(max_iter):
