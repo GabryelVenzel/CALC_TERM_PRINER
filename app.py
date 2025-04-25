@@ -87,14 +87,14 @@ def calcular_h_conv(Tf, To, L):
     h_conv = Nu * k_ar / L
     return h_conv
 
-# --- CONSTANTES DE RADIAÇÃO --- 
+# --- CONSTANTES DE RADIAÇÃO ---
 e = 0.9
 sigma = 5.67e-8
 
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
 
-# --- SELEÇÃO DO MATERIAL --- 
+# --- SELEÇÃO DO MATERIAL ---
 isolantes = carregar_isolantes()
 materiais = [i['nome'] for i in isolantes]
 
@@ -116,7 +116,7 @@ if st.button("Calcular Temperatura da(s) Face(s) Fria(s)"):
     k_funcs = [i['k_func'] for i in isolante_info]
     L_list = [L_mm / 1000 for L_mm in espessuras]
 
-    Tf_values = [To + 10.0 for _ in range(n_camadas)]
+    Tf_values = [To + (Tq - To) * (i+1) / (n_camadas+1) for i in range(n_camadas)]
     max_iter = 1000
     step = 100.0
     min_step = 0.01
@@ -129,23 +129,22 @@ if st.button("Calcular Temperatura da(s) Face(s) Fria(s)"):
     for iteracao in range(max_iter):
         progress.progress(iteracao / max_iter)
 
-        # Inicializar temperaturas das interfaces
         T = [Tq] + Tf_values
         k_medias = [calcular_k(k_funcs[i], (T[i] + T[i+1])/2) for i in range(n_camadas)]
         if any(k is None for k in k_medias):
             break
 
-        q_conducao = k_medias[0] * (T[0] - T[1]) / L_list[0]
+        q_ref = k_medias[0] * (T[0] - T[1]) / L_list[0]
         valido = True
         for i in range(1, n_camadas):
             q_i = k_medias[i] * (T[i] - T[i+1]) / L_list[i]
-            if abs(q_i - q_conducao) > tolerancia:
-                valido = False
-                erro = q_i - q_conducao
+            if abs(q_i - q_ref) > tolerancia:
+                erro = q_i - q_ref
+                Tf_values[i] += step if erro > 0 else -step
                 if erro_anterior is not None and erro * erro_anterior < 0:
                     step = max(min_step, step * 0.5)
-                Tf_values[i] += step if erro > 0 else -step
                 erro_anterior = erro
+                valido = False
                 break
 
         if valido:
@@ -156,13 +155,13 @@ if st.button("Calcular Temperatura da(s) Face(s) Fria(s)"):
             q_rad = e * sigma * (Tf_K**4 - To_K**4)
             q_conv = h_conv * (Tf_values[-1] - To)
             q_transferencia = q_conv + q_rad
-            erro = q_conducao - q_transferencia
+            erro = q_ref - q_transferencia
             if abs(erro) < tolerancia:
                 convergiu = True
                 break
+            Tf_values[-1] += step if erro > 0 else -step
             if erro_anterior is not None and erro * erro_anterior < 0:
                 step = max(min_step, step * 0.5)
-            Tf_values[-1] += step if erro > 0 else -step
             erro_anterior = erro
 
         time.sleep(0.01)
@@ -193,5 +192,4 @@ st.markdown("""
 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
 
