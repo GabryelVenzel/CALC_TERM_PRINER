@@ -143,7 +143,7 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
                 novo_isolante = pd.DataFrame([[nome, tipo, a, b, c]], columns=["nome", "tipo", "a", "b", "c"])
 
                 # Corrigido: garantir que as colunas do DataFrame sejam consistentes
-                df = pd.concat([df, novo_isolante], ignore_index=True)
+                df = pd.concat([df[["nome", "tipo", "a", "b", "c"]], novo_isolante], ignore_index=True)
 
                 # Atualizar o Google Sheets com os novos dados
                 for i, row in df.iterrows():
