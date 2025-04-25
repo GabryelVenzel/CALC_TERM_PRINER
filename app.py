@@ -167,7 +167,7 @@ with st.sidebar.expander("Opções", expanded=False):
 st.title("Cálculo Térmico - IsolaFácil")
 
 # Inicializar session_state para resultados
-if "convergiu" not in st.session_state:
+
     st.session_state.convergiu = None
     st.session_state.q_transferencia = None
     st.session_state.Tf = None
