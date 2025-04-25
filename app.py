@@ -5,9 +5,6 @@ from PIL import Image
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-import json
-from scipy.optimize import root
-import numpy as np
 
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -42,6 +39,8 @@ logo = Image.open("logo.png")
 st.image(logo, width=300)
 
 # --- CONECTAR COM GOOGLE SHEETS ---
+import json
+
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 gcp_json = json.loads(st.secrets["GCP_JSON"])
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(gcp_json, scope)
@@ -51,9 +50,16 @@ worksheet = sheet.worksheet("Isolantes")
 
 # --- FUNÇÕES AUXILIARES ---
 def carregar_isolantes():
-    """Função para carregar isolantes do Google Sheets"""
-    dados = worksheet.get_all_records()
-    return pd.DataFrame(dados).to_dict(orient="records")
+    df = pd.DataFrame(worksheet.get_all_records())
+    return df.to_dict(orient="records")
+
+def cadastrar_isolante(nome, k_func):
+    worksheet.append_row([nome, k_func])
+
+def excluir_isolante(nome):
+    cell = worksheet.find(nome)
+    if cell:
+        worksheet.delete_rows(cell.row)
 
 def calcular_k(k_func_str, T_media):
     try:
@@ -64,11 +70,12 @@ def calcular_k(k_func_str, T_media):
         st.error(f"Erro ao calcular k(T): {ex}")
         return None
 
-# --- CONSTANTES ---
+# --- CONSTANTES DE RADIAÇÃO --- 
 e = 0.9
 sigma = 5.67e-8
 
-def calcular_h_conv(Tf, To, L):
+# --- h_conv para placa horizontal com face quente para BAIXO ---
+def calcular_h_conv(Tf, To, L, isolante=False):
     g = 9.81
     Tf_K = Tf + 273.15
     To_K = To + 273.15
@@ -89,152 +96,159 @@ def calcular_h_conv(Tf, To, L):
     h_conv = Nu * k_ar / L
     return h_conv
 
-# Título principal
-st.markdown("<h1 style='text-align: center;'>Cálculo Térmico - IsolaFácil</h1>", unsafe_allow_html=True)
+# --- ACESSO --- 
+with st.sidebar.expander("Opções", expanded=False):
+    senha = st.text_input("Digite a senha", type="password")
 
-# Área restrita (posicionada logo após o título)
-with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", expanded=False):
-    senha = st.text_input("Digite a senha para acessar:", type="password")
     if senha == "Priner123":
-        st.success("Acesso concedido.")
-
-        aba = st.radio("Selecione a operação desejada:", ["Cadastrar Isolante", "Excluir Isolante"])
-
-        df = carregar_isolantes()
+        aba = st.radio("Escolha a opção", ["Cadastrar Isolante", "Gerenciar Isolantes"])
 
         if aba == "Cadastrar Isolante":
-            nome = st.text_input("Nome do isolante")
-            tipo_equacao = st.selectbox("Tipo de equação para k(T):", ["Constante", "Linear", "Polinômio de segundo grau", "Exponencial"])
+            st.subheader("Cadastrar Novo Isolante")
+            nome = st.text_input("Nome do Isolante")
 
-            if tipo_equacao == "Linear":
-                a = st.number_input("a", format="%.6f")
-                b = st.number_input("b", format="%.6f")
-                c = 0
-                tipo = "linear"
-                # Representação matemática da equação
-                st.latex(f"k(T) = {a:.6f} + {b:.6f} T")
-            elif tipo_equacao == "Polinômio de segundo grau":
-                a = st.number_input("a", format="%.6f")
-                b = st.number_input("b", format="%.6f")
-                c = st.number_input("c", format="%.6f")
-                tipo = "polinomial"
-                # Representação matemática da equação
-                st.latex(f"k(T) = {a:.6f} + {b:.6f} T + {c:.6f} T^2")
-            elif tipo_equacao == "Exponencial":
-                a = st.number_input("a", format="%.6f")
-                b = st.number_input("b", format="%.6f")
-                c = 0
-                tipo = "exponencial"
-                # Representação matemática da equação
-                st.latex(f"k(T) = {a:.6f} e^{{{b:.6f} T}}")
-            else:  # Constante
-                a = st.number_input("Valor da constante k(T)", format="%.6f")
-                b = 0
-                c = 0
-                tipo = "constante"
-                # Representação matemática da equação
-                st.latex(f"k(T) = {a:.6f}")
+            modelo_k = st.radio("Modelo de função k(T)", ["Constante", "Linear", "Polinomial", "Exponencial"])
+            k_func = ""
+            equacao_latex = ""
 
-            if st.button("Cadastrar isolante"):
-                # Recarregar os dados do Google Sheets
-                df = carregar_isolantes()
+            if modelo_k == "Constante":
+                k0 = st.number_input("k₀", value=0.035, format="%.6f")
+                k_func = f"{k0}"
+                equacao_latex = f"k(T) = {str(k0).replace('.', ',')}"
 
-                # Montar a equação completa para o tipo de função selecionado
-                if tipo_equacao == "Constante":
-                    k_func = f"{a:.6f}"
-                elif tipo_equacao == "Linear":
-                    k_func = f"{a:.6f} + {b:.6f} T"
-                elif tipo_equacao == "Polinômio de segundo grau":
-                    k_func = f"{a:.6f} + {b:.6f} T + {c:.6f} T^2"
-                elif tipo_equacao == "Exponencial":
-                    k_func = f"{a:.6f} e^{{{b:.6f} T}}"
-                
-                # Adicionar o novo isolante no DataFrame
-                novo_isolante = pd.DataFrame([[nome, k_func]], columns=["nome", "k_func"])
+            elif modelo_k == "Linear":
+                k0 = st.number_input("k₀", value=0.030, format="%.6f")
+                k1 = st.number_input("k₁ (coef. de T)", value=0.0001, format="%.6f")
+                k_func = f"{k0} + {k1} * T"
+                equacao_latex = f"k(T) = {str(k0).replace('.', ',')} + {str(k1).replace('.', ',')} \\cdot T"
 
-                # Corrigido: garantir que as colunas do DataFrame sejam consistentes
-                df = pd.concat([df, novo_isolante], ignore_index=True)
+            elif modelo_k == "Polinomial":
+                k0 = st.number_input("k₀", value=0.025, format="%.6f")
+                k1 = st.number_input("k₁ (T¹)", value=0.0001, format="%.6f")
+                k2 = st.number_input("k₂ (T²)", value=0.0, format="%.6f")
+                k3 = st.number_input("k₃ (T³)", value=0.0, format="%.6f")
+                k4 = st.number_input("k₄ (T⁴)", value=0.0, format="%.6f")
+                k_func = f"{k0} + {k1}*T + {k2}*T**2 + {k3}*T**3 + {k4}*T**4"
+                equacao_latex = (
+                    f"k(T) = {str(k0).replace('.', ',')} + {str(k1).replace('.', ',')} \\cdot T + "
+                    f"{str(k2).replace('.', ',')} \\cdot T^2 + {str(k3).replace(".", ",")} \\cdot T^3 + "
+                    f"{str(k4).replace('.', ',')} \\cdot T^4"
+                )
 
-                # Atualizar o Google Sheets com os novos dados
-                for i, row in df.iterrows():
-                    worksheet.update_cell(i + 2, 1, row["nome"])  # Coluna A
-                    worksheet.update_cell(i + 2, 2, row["k_func"])  # Coluna B
+            elif modelo_k == "Exponencial":
+                a = st.number_input("a (coeficiente)", value=0.0387, format="%.6f")
+                b = st.number_input("b (expoente)", value=0.0019, format="%.6f")
+                k_func = f"{a} * math.exp({b} * T)"
+                equacao_latex = f"k(T) = {str(a).replace('.', ',')} \\cdot e^{{{str(b).replace('.', ',')} \\cdot T}}"
 
-                st.success("Isolante cadastrado com sucesso!")
+            if equacao_latex:
+                st.markdown("**Pré-visualização da função:**")
+                st.latex(equacao_latex)
 
-        elif aba == "Excluir Isolante":
-            isolante_selecionado = st.selectbox("Selecione o isolante a ser excluído", df["nome"].tolist())
-            if st.button("Excluir isolante"):
-                df = df[df["nome"] != isolante_selecionado]
-                st.success("Isolante excluído com sucesso!")
+            if st.button("Cadastrar"):
+                if nome.strip() == "":
+                    st.error("Digite um nome para o isolante.")
+                else:
+                    isolantes_existentes = [i["nome"] for i in carregar_isolantes()]
+                    if nome in isolantes_existentes:
+                        st.warning("Já existe um isolante com esse nome.")
+                    else:
+                        cadastrar_isolante(nome, k_func)
+                        st.success(f"Isolante {nome} cadastrado com sucesso!")
 
-# --- TABS PRINCIPAIS ---
-tab1, tab2 = st.tabs(["Cálculo de face fria", "Cálculo Financeiro"])
+        elif aba == "Gerenciar Isolantes":
+            st.subheader("Isolantes Cadastrados")
+            isolantes = carregar_isolantes()
+            for i in isolantes:
+                st.write(f"**{i['nome']}**")
+                if st.button(f"Excluir {i['nome']}"):
+                    excluir_isolante(i['nome'])
+                    st.success(f"Isolante {i['nome']} excluído com sucesso!")
 
-with tab1:
-    isolantes = carregar_isolantes()
-    materiais = [i['nome'] for i in isolantes]
-    material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
-    isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
-    k_func_str = isolante['k_func']
+# --- INTERFACE PRINCIPAL ---
+st.title("Cálculo Térmico - IsolaFácil")
 
-    num_camadas = st.selectbox("Quantidade de Camadas", [1, 2, 3], index=0)
+# --- SELEÇÃO DO MATERIAL --- 
+isolantes = carregar_isolantes()
+materiais = [i['nome'] for i in isolantes]
+material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
+isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
+k_func_str = isolante['k_func']
 
-    espessuras = []
-    for i in range(num_camadas):
-        esp = st.number_input(f"Espessura da camada {i+1} [mm]", value=25.0, key=f"L{i}")
-        espessuras.append(esp / 1000)
+# --- ENTRADAS --- 
+L_mm = st.number_input("Espessura do isolante [mm]", value=51.0)
+L = L_mm / 1000
+Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
+To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
-    Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
-    To = st.number_input("Temperatura ambiente [°C]", value=30.0)
+# --- BOTÃO DE CALCULAR ---
+if st.button("Calcular Temperatura da Face Fria"):
+    Tf = To + 10.0
+    max_iter = 1000
+    step = 100.0
+    min_step = 0.01
+    tolerancia = 1.0
+    progress = st.progress(0)
+    q_transferencia = None
+    convergiu = False
+    erro_anterior = None
 
-    if st.button("Calcular Temperaturas de Face Fria"):
-        if num_camadas == 1:
-            L_total = espessuras[0]
-            Tf = To + 10.0
-            max_iter = 1000
-            step = 100.0
-            min_step = 0.01
-            tolerancia = 1.0
-            erro_anterior = None
-            convergiu = False
+    for i in range(max_iter):
+        progress.progress(i / max_iter)
+        T_media = (Tq + Tf) / 2
+        k = calcular_k(k_func_str, T_media)
+        if k is None:
+            break
 
-            for _ in range(max_iter):
-                T_media = (Tq + Tf) / 2
-                k_total = calcular_k(k_func_str, T_media)
-                if k_total is None:
-                    break
+        q_conducao = k * (Tq - Tf) / L
 
-                q_cond = k_total * (Tq - Tf) / L_total
-                Tf_K = Tf + 273.15
-                To_K = To + 273.15
-                h_conv = calcular_h_conv(Tf, To, L_total)
-                q_rad = e * sigma * (Tf_K**4 - To_K**4)
-                q_conv = h_conv * (Tf - To)
-                q_total = q_rad + q_conv
+        Tf_K = Tf + 273.15
+        To_K = To + 273.15
+        Tq_K = Tq + 273.15
 
-                erro = q_cond - q_total
+        h_conv = calcular_h_conv(Tf, To, L)
+        print(f"h_conv calculado: {h_conv:.4f} W/m²·K")
+        q_rad = e * sigma * (Tf_K**4 - To_K**4)
+        q_conv = h_conv * (Tf - To)
+        q_transferencia = q_conv + q_rad
 
-                if abs(erro) < tolerancia:
-                    convergiu = True
-                    break
+        erro = q_conducao - q_transferencia
 
-                if erro_anterior and erro * erro_anterior < 0:
-                    step = max(min_step, step * 0.5)
+        if abs(erro) < tolerancia:
+            convergiu = True
+            break
 
-                Tf += step if erro > 0 else -step
-                erro_anterior = erro
-                time.sleep(0.01)
+        if erro_anterior is not None and erro * erro_anterior < 0:
+            step = max(min_step, step * 0.5)
 
-            if convergiu:
-                st.success(f"Temperatura da face fria externa: {Tf:.1f} °C".replace('.', ','))
-            else:
-                st.error("O cálculo não convergiu.")
+        Tf += step if erro > 0 else -step
+        erro_anterior = erro
+        time.sleep(0.01)
 
-# --- FINAL ---
+    # --- RESULTADOS ---
+    st.subheader("Resultados")
+
+    if convergiu:
+        st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
+    else:
+        st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
+
+    if q_transferencia is not None:
+        perda_com = q_transferencia / 1000
+        st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
+
+        hr_sem = e * sigma * (Tq_K**4 - To_K**4)
+        h_total_sem = calcular_h_conv(Tq, To, L) + hr_sem / (Tq - To)
+        q_sem_isolante = h_total_sem * (Tq - To)
+
+        perda_sem = q_sem_isolante / 1000
+        st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
+
+
+# --- OBSERVAÇÃO ---
 st.markdown("""
 ---
 > **Observação:** Emissividade de **0.9** considerada no cálculo.
-> 
+
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
