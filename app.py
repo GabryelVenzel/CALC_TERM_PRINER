@@ -5,6 +5,7 @@ from PIL import Image
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
+import json
 
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -39,8 +40,6 @@ logo = Image.open("logo.png")
 st.image(logo, width=300)
 
 # --- CONECTAR COM GOOGLE SHEETS ---
-import json
-
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 gcp_json = json.loads(st.secrets["GCP_JSON"])
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(gcp_json, scope)
@@ -74,7 +73,6 @@ def calcular_k(k_func_str, T_media):
 e = 0.9
 sigma = 5.67e-8
 
-# --- h_conv para placa horizontal com face quente para BAIXO ---
 def calcular_h_conv(Tf, To, L, isolante=False):
     g = 9.81
     Tf_K = Tf + 273.15
@@ -96,7 +94,7 @@ def calcular_h_conv(Tf, To, L, isolante=False):
     h_conv = Nu * k_ar / L
     return h_conv
 
-# --- ACESSO --- 
+# --- INTERFACE LATERAL --- 
 with st.sidebar.expander("Opções", expanded=False):
     senha = st.text_input("Digite a senha", type="password")
 
@@ -168,14 +166,18 @@ with st.sidebar.expander("Opções", expanded=False):
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
 
-# --- SELEÇÃO DO MATERIAL --- 
+# Inicializar session_state para resultados
+if "convergiu" not in st.session_state:
+    st.session_state.convergiu = None
+    st.session_state.q_transferencia = None
+    st.session_state.Tf = None
+
 isolantes = carregar_isolantes()
 materiais = [i['nome'] for i in isolantes]
 material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
 isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
 k_func_str = isolante['k_func']
 
-# --- ENTRADAS ---
 col1, col2 = st.columns(2)
 with col1:
     Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
@@ -183,10 +185,8 @@ with col2:
     To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
 numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
-
 espessuras = []
 
-# --- ESPESSURAS INDIVIDUAIS ---
 if numero_camadas == 1:
     L1 = st.number_input("Espessura da camada 1 [mm]", value=51.0, key="L1")
     espessuras.append(L1)
@@ -207,10 +207,8 @@ elif numero_camadas == 3:
         L3 = st.number_input("Espessura da camada 3 [mm]", value=20.0, key="L3")
     espessuras.extend([L1, L2, L3])
 
-# Espessura total [m]
 L_total = sum(espessuras) / 1000
 
-# --- BOTÃO DE CALCULAR ---
 if st.button("Calcular Temperatura da Face Fria"):
     Tf = To + 10.0
     max_iter = 1000
@@ -218,8 +216,6 @@ if st.button("Calcular Temperatura da Face Fria"):
     min_step = 0.01
     tolerancia = 1.0
     progress = st.progress(0)
-    convergiu = False
-    q_transferencia = None
     erro_anterior = None
 
     for i in range(max_iter):
@@ -243,7 +239,9 @@ if st.button("Calcular Temperatura da Face Fria"):
         erro = q_conducao - q_transferencia
 
         if abs(erro) < tolerancia:
-            convergiu = True
+            st.session_state.convergiu = True
+            st.session_state.Tf = Tf
+            st.session_state.q_transferencia = q_transferencia
             break
 
         if erro_anterior is not None and erro * erro_anterior < 0:
@@ -252,28 +250,29 @@ if st.button("Calcular Temperatura da Face Fria"):
         Tf += step if erro > 0 else -step
         erro_anterior = erro
         time.sleep(0.01)
+    else:
+        st.session_state.convergiu = False
 
-    # --- RESULTADOS ---
+if st.session_state.convergiu is not None:
     st.subheader("Resultados")
 
-    if convergiu:
-        st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
+    if st.session_state.convergiu:
+        st.success(f"\U00002705 Temperatura da face fria: {st.session_state.Tf:.1f} °C".replace('.', ','))
     else:
         st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
 
-    if q_transferencia is not None:
-        perda_com = q_transferencia / 1000
+    if st.session_state.q_transferencia is not None:
+        perda_com = st.session_state.q_transferencia / 1000
         st.info(f"Perda total com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
 
-        hr_sem = e * sigma * (Tq_K**4 - To_K**4)
+        hr_sem = e * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
         h_total_sem = calcular_h_conv(Tq, To, L_total) + hr_sem / (Tq - To)
         q_sem_isolante = h_total_sem * (Tq - To)
 
         perda_sem = q_sem_isolante / 1000
         st.warning(f"Perda total sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
 
-    # Mostrando espessura total usada:
-    st.markdown(f"**Espessura total considerada:** {L_total*1000:.1f} mm".replace('.', ','))
+        st.markdown(f"**Espessura total considerada:** {L_total*1000:.1f} mm".replace('.', ','))
 
 # --- OBSERVAÇÃO ---
 st.markdown("""
