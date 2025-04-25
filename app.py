@@ -267,20 +267,7 @@ if st.session_state.convergiu is not None:
     else:
         st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
 
-    
-
-    if st.session_state.q_transferencia is not None:
-        perda_com = st.session_state.q_transferencia / 1000
-        st.info(f"Perda com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
-
-        hr_sem = e * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
-        h_total_sem = calcular_h_conv(Tq, To, L_total) + hr_sem / (Tq - To)
-        q_sem_isolante = h_total_sem * (Tq - To)
-
-        perda_sem = q_sem_isolante / 1000
-        st.warning(f"Perda sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
-
-# --- TEMPERATURAS INTERMEDIÁRIAS (se houver mais de 1 camada) ---
+    # --- TEMPERATURAS INTERMEDIÁRIAS (se houver mais de 1 camada) ---
 if st.session_state.convergiu and numero_camadas > 1:
     delta_T = Tq - st.session_state.Tf
     frac_espessuras = [e / sum(espessuras) for e in espessuras]
@@ -296,6 +283,18 @@ if st.session_state.convergiu and numero_camadas > 1:
     # Exibição dos resultados
     for idx, temp in enumerate(temperaturas_intermed):
         st.write(f"Temperatura entre camada {idx + 1} e {idx + 2}: {temp:.1f} °C".replace('.', ','))
+
+    if st.session_state.q_transferencia is not None:
+        perda_com = st.session_state.q_transferencia / 1000
+        st.info(f"Perda com isolante: {str(perda_com).replace('.', ',')[:6]} kW/m²")
+
+        hr_sem = e * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
+        h_total_sem = calcular_h_conv(Tq, To, L_total) + hr_sem / (Tq - To)
+        q_sem_isolante = h_total_sem * (Tq - To)
+
+        perda_sem = q_sem_isolante / 1000
+        st.warning(f"Perda sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
+
 
 # --- OBSERVAÇÃO ---
 st.markdown("""
