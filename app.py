@@ -259,13 +259,14 @@ if st.button("Calcular Temperatura da Face Fria"):
     st.session_state.Tf = Tf
 
 # --- RESULTADOS ---
+
+st.subheader("Resultados")
+
 if st.session_state.convergiu is not None:
     if st.session_state.convergiu:
         st.success(f"\U00002705 Temperatura da face fria: {st.session_state.Tf:.1f} °C".replace('.', ','))
     else:
         st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
-
-    st.subheader("Resultados")
 
     if st.session_state.q_transferencia is not None:
         perda_com = st.session_state.q_transferencia / 1000
