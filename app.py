@@ -87,79 +87,182 @@ def calcular_h_conv(Tf, To, L):
         Nu = 0.15 * Ra**(1/3)
     return Nu * k_ar / L
 
-# --- NOVO CÁLCULO COM RESOLUÇÃO DIRETA ---
-def calcular_temperaturas_direto(num_camadas, espessuras, Tq, To, k_func_str):
-    def sistema(vars):
-        if num_camadas == 1:
-            Tf = vars[0]
-            Tm = (Tq + Tf) / 2
-            k = calcular_k(k_func_str, Tm)
-            q = k * (Tq - Tf) / espessuras[0]
-        elif num_camadas == 2:
-            T1, Tf = vars
-            k1 = calcular_k(k_func_str, (Tq + T1) / 2)
-            k2 = calcular_k(k_func_str, (T1 + Tf) / 2)
-            q1 = k1 * (Tq - T1) / espessuras[0]
-            q2 = k2 * (T1 - Tf) / espessuras[1]
-            q = (q1 + q2) / 2
-        else:  # 3 camadas
-            T1, T2, Tf = vars
-            k1 = calcular_k(k_func_str, (Tq + T1) / 2)
-            k2 = calcular_k(k_func_str, (T1 + T2) / 2)
-            k3 = calcular_k(k_func_str, (T2 + Tf) / 2)
-            q1 = k1 * (Tq - T1) / espessuras[0]
-            q2 = k2 * (T1 - T2) / espessuras[1]
-            q3 = k3 * (T2 - Tf) / espessuras[2]
-            q = (q1 + q2 + q3) / 3
+# --- SELEÇÃO DO NÚMERO DE CAMADAS ---
+num_camadas = st.selectbox("Selecione o número de camadas", [1, 2, 3])
+
+# --- FUNÇÃO DE CÁLCULO PARA UMA CAMADA ---
+def calcular_temperatura_1_camada(Tq, To, L, k_func_str):
+    Tf = To + 10.0
+    max_iter = 1000
+    step = 100.0
+    min_step = 0.01
+    tolerancia = 1.0
+    progress = st.progress(0)
+    q_transferencia = None
+    convergiu = False
+    erro_anterior = None
+
+    for i in range(max_iter):
+        progress.progress(i / max_iter)
+        T_media = (Tq + Tf) / 2
+        k = calcular_k(k_func_str, T_media)
+        if k is None:
+            break
+
+        q_conducao = k * (Tq - Tf) / L
 
         Tf_K = Tf + 273.15
         To_K = To + 273.15
-        h_conv = calcular_h_conv(Tf, To, sum(espessuras))
+        Tq_K = Tq + 273.15
+
+        h_conv = calcular_h_conv(Tf, To, L)
         q_rad = e * sigma * (Tf_K**4 - To_K**4)
         q_conv = h_conv * (Tf - To)
-        q_perda = q_conv + q_rad
+        q_transferencia = q_conv + q_rad
 
-        if num_camadas == 1:
-            return [q - q_perda]
-        elif num_camadas == 2:
-            return [q1 - q2, q - q_perda]
-        else:
-            return [q1 - q2, q2 - q3, q - q_perda]
+        erro = q_conducao - q_transferencia
 
-    if num_camadas == 1:
-        sol = fsolve(sistema, [To])
-        return [Tq, sol[0]]
-    elif num_camadas == 2:
-        sol = fsolve(sistema, [To + 10, To])
-        return [Tq, sol[0], sol[1]]
+        if abs(erro) < tolerancia:
+            convergiu = True
+            break
+
+        if erro_anterior is not None and erro * erro_anterior < 0:
+            step = max(min_step, step * 0.5)
+
+        Tf += step if erro > 0 else -step
+        erro_anterior = erro
+
+    if convergiu:
+        return Tf, q_transferencia
     else:
-        sol = fsolve(sistema, [Tq - 10, To + 10, To])
-        return [Tq, sol[0], sol[1], sol[2]]
+        return None, None
 
-# --- CONSTANTES ---
-e = 0.9
-sigma = 5.67e-8
+# --- FUNÇÃO DE CÁLCULO PARA DUAS CAMADAS ---
+def calcular_temperatura_2_camadas(Tq, To, L1, L2, k1_func_str, k2_func_str):
+    Tf1 = To + 10.0
+    Tf2 = To + 10.0
+    max_iter = 1000
+    step = 100.0
+    min_step = 0.01
+    tolerancia = 1.0
+    progress = st.progress(0)
+    q_transferencia = None
+    convergiu = False
+    erro_anterior = None
 
-# --- INTERFACE PRINCIPAL ---
-st.title("Cálculo Térmico - IsolaFácil")
+    for i in range(max_iter):
+        progress.progress(i / max_iter)
+        
+        # Calcular k para ambas as camadas
+        k1 = calcular_k(k1_func_str, (Tq + Tf1) / 2)
+        k2 = calcular_k(k2_func_str, (Tf1 + Tf2) / 2)
 
-isolantes = carregar_isolantes()
-materiais = [i['nome'] for i in isolantes]
-material_selecionado = st.selectbox("Escolha o material do isolante", materiais)
-isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
-k_func_str = isolante['k_func']
+        if k1 is None or k2 is None:
+            break
 
-num_camadas = st.selectbox("Número de camadas de isolante", [1, 2, 3], index=0)
-espessuras_mm = [st.number_input(f"Espessura da camada {i+1} [mm]", value=51.0) for i in range(num_camadas)]
-espessuras = [esp / 1000 for esp in espessuras_mm]
-Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
-To = st.number_input("Temperatura ambiente [°C]", value=30.0)
+        # Calcular o fluxo de calor de cada camada
+        q_conducao_1 = k1 * (Tq - Tf1) / L1
+        q_conducao_2 = k2 * (Tf1 - Tf2) / L2
 
-if st.button("Calcular Temperatura da Face Fria"):
-    temperaturas = calcular_temperaturas_direto(num_camadas, espessuras, Tq, To, k_func_str)
-    Tf = temperaturas[-1]
-    st.subheader("Resultados")
-    st.success(f"\U00002705 Temperatura da face fria: {Tf:.1f} °C".replace('.', ','))
+        # Cálculo do fluxo de calor convectivo e radiativo
+        Tf_K = Tf1 + 273.15
+        To_K = To + 273.15
+        Tq_K = Tq + 273.15
+
+        h_conv = calcular_h_conv(Tf1, To, L1)
+        q_rad = e * sigma * (Tf_K**4 - To_K**4)
+        q_conv = h_conv * (Tf1 - To)
+
+        q_transferencia = q_conv + q_rad
+
+        erro = q_conducao_1 - q_conducao_2
+
+        if abs(erro) < tolerancia:
+            convergiu = True
+            break
+
+        if erro_anterior is not None and erro * erro_anterior < 0:
+            step = max(min_step, step * 0.5)
+
+        Tf1 += step if erro > 0 else -step
+        erro_anterior = erro
+
+    if convergiu:
+        return Tf1, Tf2, q_transferencia
+    else:
+        return None, None, None
+
+# --- FUNÇÃO DE CÁLCULO PARA TRÊS CAMADAS ---
+def calcular_temperatura_3_camadas(Tq, To, L1, L2, L3, k1_func_str, k2_func_str, k3_func_str):
+    Tf1 = To + 10.0
+    Tf2 = To + 10.0
+    Tf3 = To + 10.0
+    max_iter = 1000
+    step = 100.0
+    min_step = 0.01
+    tolerancia = 1.0
+    progress = st.progress(0)
+    q_transferencia = None
+    convergiu = False
+    erro_anterior = None
+
+    for i in range(max_iter):
+        progress.progress(i / max_iter)
+        
+        # Calcular k para todas as camadas
+        k1 = calcular_k(k1_func_str, (Tq + Tf1) / 2)
+        k2 = calcular_k(k2_func_str, (Tf1 + Tf2) / 2)
+        k3 = calcular_k(k3_func_str, (Tf2 + Tf3) / 2)
+
+        if k1 is None or k2 is None or k3 is None:
+            break
+
+        # Calcular os fluxos de calor para cada camada
+        q_conducao_1 = k1 * (Tq - Tf1) / L1
+        q_conducao_2 = k2 * (Tf1 - Tf2) / L2
+        q_conducao_3 = k3 * (Tf2 - Tf3) / L3
+
+        # Cálculo do fluxo de calor convectivo e radiativo
+        Tf_K = Tf2 + 273.15
+        To_K = To + 273.15
+        Tq_K = Tq + 273.15
+
+        h_conv = calcular_h_conv(Tf2, To, L2)
+        q_rad = e * sigma * (Tf_K**4 - To_K**4)
+        q_conv = h_conv * (Tf2 - To)
+
+        q_transferencia = q_conv + q_rad
+
+        erro = q_conducao_2 - q_transferencia
+
+        if abs(erro) < tolerancia:
+            convergiu = True
+            break
+
+        if erro_anterior is not None and erro * erro_anterior < 0:
+            step = max(min_step, step * 0.5)
+
+        Tf2 += step if erro > 0 else -step
+        erro_anterior = erro
+
+    if convergiu:
+        return Tf1, Tf2, Tf3, q_transferencia
+    else:
+        return None, None, None, None
+
+# --- CÁLCULO FINAL BASEADO NO NÚMERO DE CAMADAS ---
+if num_camadas == 1:
+    Tf, q_transferencia = calcular_temperatura_1_camada(Tq, To, L, k_func_str)
+    if Tf is not None:
+        st.success(f"Temperatura da face fria: {Tf:.1f} °C")
+elif num_camadas == 2:
+    Tf1, Tf2, q_transferencia = calcular_temperatura_2_camadas(Tq, To, L1, L2, k1_func_str, k2_func_str)
+    if Tf1 is not None and Tf2 is not None:
+        st.success(f"Temperaturas das faces frias: Tf1 = {Tf1:.1f} °C, Tf2 = {Tf2:.1f} °C")
+elif num_camadas == 3:
+    Tf1, Tf2, Tf3, q_transferencia = calcular_temperatura_3_camadas(Tq, To, L1, L2, L3, k1_func_str, k2_func_str, k3_func_str)
+    if Tf1 is not None and Tf2 is not None and Tf3 is not None:
+        st.success(f"Temperaturas das faces frias: Tf1 = {Tf1:.1f} °C, Tf2 = {Tf2:.1f} °C, Tf3 = {Tf3:.1f} °C")
 
     Tf_K = Tf + 273.15
     To_K = To + 273.15
