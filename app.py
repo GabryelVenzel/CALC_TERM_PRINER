@@ -52,6 +52,14 @@ def carregar_isolantes():
     df = pd.DataFrame(worksheet.get_all_records())
     return df.to_dict(orient="records")
 
+def cadastrar_isolante(nome, k_func):
+    worksheet.append_row([nome, k_func])
+
+def excluir_isolante(nome):
+    cell = worksheet.find(nome)
+    if cell:
+        worksheet.delete_rows(cell.row)
+
 def calcular_k(k_func_str, T_media):
     try:
         if isinstance(k_func_str, (int, float)):
@@ -60,6 +68,10 @@ def calcular_k(k_func_str, T_media):
     except Exception as ex:
         st.error(f"Erro ao calcular k(T): {ex}")
         return None
+
+# --- CONSTANTES DE RADIAÇÃO ---
+e = 0.9
+sigma = 5.67e-8
 
 def calcular_h_conv(Tf, To, L, isolante=False):
     g = 9.81
@@ -70,28 +82,94 @@ def calcular_h_conv(Tf, To, L, isolante=False):
     nu = 1.5e-5
     alpha = 2.2e-5
     k_ar = 0.026
+
     delta_T = Tf - To
     Ra = (g * beta * abs(delta_T) * L**3) / (nu * alpha)
+
     if Ra < 1e7:
         Nu = 0.27 * Ra**0.25
     else:
         Nu = 0.15 * Ra**(1/3)
+
     h_conv = Nu * k_ar / L
     return h_conv
 
-# --- CONSTANTES ---
-e = 0.9
-sigma = 5.67e-8
-
-# --- SESSION STATE ---
+# --- INICIALIZAÇÃO DO SESSION STATE ---
 if 'convergiu' not in st.session_state:
     st.session_state.convergiu = None
 if 'q_transferencia' not in st.session_state:
     st.session_state.q_transferencia = None
 if 'Tf' not in st.session_state:
     st.session_state.Tf = None
-if 'temperaturas_intermediarias' not in st.session_state:
-    st.session_state.temperaturas_intermediarias = []
+
+# --- INTERFACE LATERAL ---
+with st.sidebar.expander("Opções", expanded=False):
+    senha = st.text_input("Digite a senha", type="password")
+
+    if senha == "Priner123":
+        aba = st.radio("Escolha a opção", ["Cadastrar Isolante", "Gerenciar Isolantes"])
+
+        if aba == "Cadastrar Isolante":
+            st.subheader("Cadastrar Novo Isolante")
+            nome = st.text_input("Nome do Isolante")
+
+            modelo_k = st.radio("Modelo de função k(T)", ["Constante", "Linear", "Polinomial", "Exponencial"])
+            k_func = ""
+            equacao_latex = ""
+
+            if modelo_k == "Constante":
+                k0 = st.number_input("k₀", value=0.035, format="%.6f")
+                k_func = f"{k0}"
+                equacao_latex = f"k(T) = {str(k0).replace('.', ',')}"
+
+            elif modelo_k == "Linear":
+                k0 = st.number_input("k₀", value=0.030, format="%.6f")
+                k1 = st.number_input("k₁ (coef. de T)", value=0.0001, format="%.6f")
+                k_func = f"{k0} + {k1} * T"
+                equacao_latex = f"k(T) = {str(k0).replace('.', ',')} + {str(k1).replace('.', ',')} \\cdot T"
+
+            elif modelo_k == "Polinomial":
+                k0 = st.number_input("k₀", value=0.025, format="%.6f")
+                k1 = st.number_input("k₁ (T¹)", value=0.0001, format="%.6f")
+                k2 = st.number_input("k₂ (T²)", value=0.0, format="%.6f")
+                k3 = st.number_input("k₃ (T³)", value=0.0, format="%.6f")
+                k4 = st.number_input("k₄ (T⁴)", value=0.0, format="%.6f")
+                k_func = f"{k0} + {k1}*T + {k2}*T**2 + {k3}*T**3 + {k4}*T**4"
+                equacao_latex = (
+                    f"k(T) = {str(k0).replace('.', ',')} + {str(k1).replace('.', ',')} \\cdot T + "
+                    f"{str(k2).replace('.', ',')} \\cdot T^2 + {str(k3).replace('.', ',')} \\cdot T^3 + "
+                    f"{str(k4).replace('.', ',')} \\cdot T^4"
+                )
+
+            elif modelo_k == "Exponencial":
+                a = st.number_input("a (coeficiente)", value=0.0387, format="%.6f")
+                b = st.number_input("b (expoente)", value=0.0019, format="%.6f")
+                k_func = f"{a} * math.exp({b} * T)"
+                equacao_latex = f"k(T) = {str(a).replace('.', ',')} \\cdot e^{{{str(b).replace('.', ',')} \\cdot T}}"
+
+            if equacao_latex:
+                st.markdown("**Pré-visualização da função:**")
+                st.latex(equacao_latex)
+
+            if st.button("Cadastrar"):
+                if nome.strip() == "":
+                    st.error("Digite um nome para o isolante.")
+                else:
+                    isolantes_existentes = [i["nome"] for i in carregar_isolantes()]
+                    if nome in isolantes_existentes:
+                        st.warning("Já existe um isolante com esse nome.")
+                    else:
+                        cadastrar_isolante(nome, k_func)
+                        st.success(f"Isolante {nome} cadastrado com sucesso!")
+
+        elif aba == "Gerenciar Isolantes":
+            st.subheader("Isolantes Cadastrados")
+            isolantes = carregar_isolantes()
+            for i in isolantes:
+                st.write(f"**{i['nome']}**")
+                if st.button(f"Excluir {i['nome']}"):
+                    excluir_isolante(i['nome'])
+                    st.success(f"Isolante {i['nome']} excluído com sucesso!")
 
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
@@ -133,7 +211,7 @@ elif numero_camadas == 3:
 
 L_total = sum(espessuras) / 1000
 
-# --- BOTÃO CALCULAR ---
+# --- BOTÃO DE CALCULAR ---
 if st.button("Calcular Temperatura da Face Fria"):
     Tf = To + 10.0
     max_iter = 1000
@@ -180,30 +258,13 @@ if st.button("Calcular Temperatura da Face Fria"):
     st.session_state.q_transferencia = q_transferencia
     st.session_state.Tf = Tf
 
-    # --- CÁLCULO DAS TEMPERATURAS INTERMEDIÁRIAS ---
-    temperaturas_intermediarias = []
-    temperatura_atual = Tq
-
-    for espessura in espessuras:
-        L_m = espessura / 1000  # mm para metros
-        k = calcular_k(k_func_str, (temperatura_atual + Tf) / 2)
-        q_conducao = k * (temperatura_atual - Tf) / L_total
-        delta_T = q_conducao * L_m / k
-        temperatura_atual -= delta_T
-        temperaturas_intermediarias.append(temperatura_atual)
-
-    st.session_state.temperaturas_intermediarias = temperaturas_intermediarias
-
 # --- RESULTADOS ---
+
 st.subheader("Resultados")
 
 if st.session_state.convergiu is not None:
     if st.session_state.convergiu:
-        st.success(f"\U00002705 Temperatura final da face fria: {st.session_state.Tf:.1f} °C".replace('.', ','))
-
-        for idx, temp in enumerate(st.session_state.temperaturas_intermediarias, start=1):
-            st.info(f"Temperatura após camada {idx}: {temp:.1f} °C".replace('.', ','))
-
+        st.success(f"\U00002705 Temperatura da face fria: {st.session_state.Tf:.1f} °C".replace('.', ','))
     else:
         st.error("\U0000274C O cálculo não convergiu dentro do limite de iterações.")
 
@@ -225,5 +286,3 @@ st.markdown("""
 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
-
