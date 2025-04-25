@@ -254,8 +254,6 @@ if st.button("Calcular Temperatura da Face Fria"):
         time.sleep(0.01)
 
     # --- RESULTADOS ---
-    # Definição fora do botão (evita NameError)
-
     st.subheader("Resultados")
 
     if convergiu:
