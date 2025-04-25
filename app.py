@@ -14,6 +14,11 @@ st.header("Cadastro de Isolantes")
 nome_isolante = st.text_input("Nome do Isolante")
 k_func_str = st.text_area("Equação k(T)", "Informe a equação k(T)")
 
+if nome_isolante and k_func_str:
+    if st.button("Cadastrar Isolante"):
+        cadastrar_isolante(nome_isolante, k_func_str)
+        st.success(f"Isolante '{nome_isolante}' cadastrado com sucesso!")
+
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
 
