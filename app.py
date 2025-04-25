@@ -49,15 +49,11 @@ client = gspread.authorize(credentials)
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1W1JHXAnGJeWbGVK0AmORux5I7CYTEwoBIvBfVKO40aY/edit#gid=0")
 worksheet = sheet.worksheet("Isolantes")
 
-# --- FUNÇÕES AUXILIARES PARA DADOS ---
-@st.cache_data
-def carregar_dados():
+# --- FUNÇÕES AUXILIARES ---
+def carregar_isolantes():
+    """Função para carregar isolantes do Google Sheets"""
     dados = worksheet.get_all_records()
-    return pd.DataFrame(dados)
-
-def salvar_dados(df):
-    worksheet.clear()
-    worksheet.update([df.columns.values.tolist()] + df.values.tolist())
+    return pd.DataFrame(dados).to_dict(orient="records")
 
 def calcular_k(k_func_str, T_media):
     try:
@@ -104,20 +100,7 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
 
         aba = st.radio("Selecione a operação desejada:", ["Cadastrar Isolante", "Excluir Isolante"])
 
-        planilha_id = "1vZ4t8DnRVe-oyWL_g6xrkVqGc6oYEK8fQkHp7a8tZKw"
-        aba_nome = "isolantes"
-
-        @st.cache_data
-        def carregar_dados():
-            url = f"https://docs.google.com/spreadsheets/d/1W1JHXAnGJeWbGVK0AmORux5I7CYTEwoBIvBfVKO40aY/edit#gid=0/gviz/tq?tqx=out:csv&sheet=Isolantes"
-            worksheet = sheet.worksheet("Isolantes")
-            return pd.read_csv(url)
-
-        def salvar_dados(df):
-            # Aqui entraria o código para salvar no Google Sheets (omitido por segurança)
-            pass
-
-        df = carregar_dados()
+        df = carregar_isolantes()
 
         if aba == "Cadastrar Isolante":
             nome = st.text_input("Nome do isolante")
@@ -143,14 +126,12 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
             if st.button("Cadastrar isolante"):
                 novo = pd.DataFrame([[nome, densidade, tipo, a, b, c]], columns=df.columns)
                 df = pd.concat([df, novo], ignore_index=True)
-                salvar_dados(df)
                 st.success("Isolante cadastrado com sucesso!")
 
         elif aba == "Excluir Isolante":
             isolante_selecionado = st.selectbox("Selecione o isolante a ser excluído", df["nome"].tolist())
             if st.button("Excluir isolante"):
                 df = df[df["nome"] != isolante_selecionado]
-                salvar_dados(df)
                 st.success("Isolante excluído com sucesso!")
 
 # --- TABS PRINCIPAIS ---
@@ -216,62 +197,7 @@ with tab1:
             else:
                 st.error("O cálculo não convergiu.")
 
-        elif num_camadas == 2:
-            L1, L2 = espessuras
-
-            def sistema(vars):
-                Tf1, Tf2 = vars
-                Tm1 = (Tq + Tf1) / 2
-                Tm2 = (Tf1 + Tf2) / 2
-                k1 = calcular_k(k_func_str, Tm1)
-                k2 = calcular_k(k_func_str, Tm2)
-                q1 = k1 * (Tq - Tf1) / L1
-                q2 = k2 * (Tf1 - Tf2) / L2
-                h_conv = calcular_h_conv(Tf2, To, L2)
-                q_conv = h_conv * (Tf2 - To)
-                q_rad = e * sigma * ((Tf2 + 273.15)**4 - (To + 273.15)**4)
-                return [q1 - q2, q2 - (q_conv + q_rad)]
-
-            sol = root(sistema, [Tq - 10, Tq - 20])
-            if sol.success:
-                Tf1, Tf2 = sol.x
-                st.success(f"Temperatura após camada 1: {Tf1:.1f} °C".replace('.', ','))
-                st.success(f"Temperatura da face fria externa: {Tf2:.1f} °C".replace('.', ','))
-            else:
-                st.error("Não foi possível resolver o sistema para duas camadas.")
-
-        elif num_camadas == 3:
-            L1, L2, L3 = espessuras
-
-            def sistema(vars):
-                Tf1, Tf2, Tf3 = vars
-                Tm1 = (Tq + Tf1) / 2
-                Tm2 = (Tf1 + Tf2) / 2
-                Tm3 = (Tf2 + Tf3) / 2
-                k1 = calcular_k(k_func_str, Tm1)
-                k2 = calcular_k(k_func_str, Tm2)
-                k3 = calcular_k(k_func_str, Tm3)
-                q1 = k1 * (Tq - Tf1) / L1
-                q2 = k2 * (Tf1 - Tf2) / L2
-                q3 = k3 * (Tf2 - Tf3) / L3
-                h_conv = calcular_h_conv(Tf3, To, L3)
-                q_conv = h_conv * (Tf3 - To)
-                q_rad = e * sigma * ((Tf3 + 273.15)**4 - (To + 273.15)**4)
-                return [q1 - q2, q2 - q3, q3 - (q_conv + q_rad)]
-
-            sol = root(sistema, [Tq - 10, Tq - 20, Tq - 30])
-            if sol.success:
-                Tf1, Tf2, Tf3 = sol.x
-                st.success(f"Temperatura após camada 1: {Tf1:.1f} °C".replace('.', ','))
-                st.success(f"Temperatura após camada 2: {Tf2:.1f} °C".replace('.', ','))
-                st.success(f"Temperatura da face fria externa: {Tf3:.1f} °C".replace('.', ','))
-            else:
-                st.error("Não foi possível resolver o sistema para três camadas.")
-
-with tab2:
-    st.markdown("### Em breve: Cálculo com retorno financeiro")
-    st.info("Esta aba será utilizada para calcular a economia financeira com o uso de isolamento térmico.")
-
+# --- FINAL ---
 st.markdown("""
 ---
 > **Observação:** Emissividade de **0.9** considerada no cálculo.
