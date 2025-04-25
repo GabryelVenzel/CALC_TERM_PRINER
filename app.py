@@ -139,19 +139,26 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
                 # Recarregar os dados do Google Sheets
                 df = carregar_isolantes()
 
+                # Montar a equação completa para o tipo de função selecionado
+                if tipo_equacao == "Constante":
+                    k_func = f"{a:.6f}"
+                elif tipo_equacao == "Linear":
+                    k_func = f"{a:.6f} + {b:.6f} T"
+                elif tipo_equacao == "Polinômio de segundo grau":
+                    k_func = f"{a:.6f} + {b:.6f} T + {c:.6f} T^2"
+                elif tipo_equacao == "Exponencial":
+                    k_func = f"{a:.6f} e^{{{b:.6f} T}}"
+                
                 # Adicionar o novo isolante no DataFrame
-                novo_isolante = pd.DataFrame([[nome, tipo, a, b, c]], columns=["nome", "tipo", "a", "b", "c"])
+                novo_isolante = pd.DataFrame([[nome, k_func]], columns=["nome", "k_func"])
 
                 # Corrigido: garantir que as colunas do DataFrame sejam consistentes
-                df = pd.concat([df[["nome", "tipo", "a", "b", "c"]], novo_isolante], ignore_index=True)
+                df = pd.concat([df, novo_isolante], ignore_index=True)
 
                 # Atualizar o Google Sheets com os novos dados
                 for i, row in df.iterrows():
-                    worksheet.update_cell(i + 2, 1, row["nome"])
-                    worksheet.update_cell(i + 2, 2, row["tipo"])
-                    worksheet.update_cell(i + 2, 3, row["a"])
-                    worksheet.update_cell(i + 2, 4, row["b"])
-                    worksheet.update_cell(i + 2, 5, row["c"])
+                    worksheet.update_cell(i + 2, 1, row["nome"])  # Coluna A
+                    worksheet.update_cell(i + 2, 2, row["k_func"])  # Coluna B
 
                 st.success("Isolante cadastrado com sucesso!")
 
