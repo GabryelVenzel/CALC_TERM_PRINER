@@ -280,6 +280,25 @@ if st.session_state.convergiu is not None:
         perda_sem = q_sem_isolante / 1000
         st.warning(f"Perda sem o uso de isolante: {str(perda_sem).replace('.', ',')[:6]} kW/m²")
 
+# --- TEMPERATURAS INTERMEDIÁRIAS (se houver mais de 1 camada) ---
+if st.session_state.convergiu and numero_camadas > 1:
+    st.markdown("### Temperaturas Intermediárias entre as Camadas")
+
+    delta_T = Tq - st.session_state.Tf
+    frac_espessuras = [e / sum(espessuras) for e in espessuras]
+
+    # Cálculo das temperaturas intermediárias
+    temperaturas_intermed = []
+    acumulado = 0
+    for i in range(numero_camadas - 1):
+        acumulado += frac_espessuras[i]
+        Ti = Tq - (delta_T * acumulado)
+        temperaturas_intermed.append(Ti)
+
+    # Exibição dos resultados
+    for idx, temp in enumerate(temperaturas_intermed):
+        st.write(f"Temperatura entre camada {idx + 1} e {idx + 2}: {temp:.1f} °C".replace('.', ','))
+
 # --- OBSERVAÇÃO ---
 st.markdown("""
 ---
