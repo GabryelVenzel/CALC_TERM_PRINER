@@ -104,23 +104,28 @@ with st.expander("🔒 Área restrita: Cadastro e Gerenciamento de Isolantes", e
 
         if aba == "Cadastrar Isolante":
             nome = st.text_input("Nome do isolante")
-            tipo_equacao = st.selectbox("Tipo de equação para k(T):", ["a + b*T", "a + b*T + c*T²", "a + b*log(T)"])
+            tipo_equacao = st.selectbox("Tipo de equação para k(T):", ["Constante", "Linear", "Polinômio de segundo grau", "Exponencial"])
 
-            if tipo_equacao == "a + b*T":
+            if tipo_equacao == "Linear":
                 a = st.number_input("a", format="%.6f")
                 b = st.number_input("b", format="%.6f")
                 c = 0
                 tipo = "linear"
-            elif tipo_equacao == "a + b*T + c*T²":
+            elif tipo_equacao == "Polinômio de segundo grau":
                 a = st.number_input("a", format="%.6f")
                 b = st.number_input("b", format="%.6f")
                 c = st.number_input("c", format="%.6f")
                 tipo = "polinomial"
-            else:
+            elif tipo_equacao == "Exponencial":
                 a = st.number_input("a", format="%.6f")
                 b = st.number_input("b", format="%.6f")
                 c = 0
-                tipo = "logarítmica"
+                tipo = "exponencial"
+            else:  # Constante
+                a = st.number_input("Valor da constante k(T)", format="%.6f")
+                b = 0
+                c = 0
+                tipo = "constante"
 
             if st.button("Cadastrar isolante"):
                 novo = pd.DataFrame([[nome, tipo, a, b, c]], columns=df.columns)
