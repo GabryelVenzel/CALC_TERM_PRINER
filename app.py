@@ -168,32 +168,32 @@ To = st.number_input("Temperatura ambiente [°C]", value=30.0)
 
 if st.button("Calcular Temperatura da Face Fria"):
     max_iter = 1000
-    step = 100.0
+    step = 50.0
     min_step = 0.01
     tolerancia = 1.0
     progress = st.progress(0)
     convergiu = False
-    temperaturas = [Tq] + [To + (Tq - To) * (num_camadas - i) / (num_camadas + 1) for i in range(1, num_camadas)] + [To]
+    temperaturas = [Tq] + [To for _ in range(num_camadas)]
 
     for i in range(max_iter):
         progress.progress(i / max_iter)
         ks = []
-        q_conducoes = []
+        q_vals = []
         for j in range(num_camadas):
-            T_media = (temperaturas[j] + temperaturas[j+1]) / 2
-            k = calcular_k(k_func_str, T_media)
+            Tm = (temperaturas[j] + temperaturas[j+1]) / 2
+            k = calcular_k(k_func_str, Tm)
             if k is None:
                 break
             ks.append(k)
-            q_cond = k * (temperaturas[j] - temperaturas[j+1]) / espessuras[j]
-            q_conducoes.append(q_cond)
-        erro = max(q_conducoes) - min(q_conducoes)
+            q = k * (temperaturas[j] - temperaturas[j+1]) / espessuras[j]
+            q_vals.append(q)
+        erro = max(q_vals) - min(q_vals)
         if abs(erro) < tolerancia:
             convergiu = True
             break
         for j in range(1, num_camadas):
-            temperaturas[j] += step if q_conducoes[j-1] > q_conducoes[j] else -step
-        step = max(min_step, step * 0.9)
+            temperaturas[j] += step if q_vals[j-1] > q_vals[j] else -step
+        step = max(min_step, step * 0.95)
         time.sleep(0.01)
 
     st.subheader("Resultados")
