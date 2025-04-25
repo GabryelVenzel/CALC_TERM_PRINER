@@ -282,7 +282,7 @@ if st.session_state.convergiu and numero_camadas > 1:
 
     # Exibição dos resultados
     for idx, temp in enumerate(temperaturas_intermed):
-        st.st.success(f"Temperatura entre camada {idx + 1} e {idx + 2}: {temp:.1f} °C".replace('.', ','))
+        st.success(f"Temperatura entre camada {idx + 1} e {idx + 2}: {temp:.1f} °C".replace('.', ','))
 
     if st.session_state.q_transferencia is not None:
         perda_com = st.session_state.q_transferencia / 1000
