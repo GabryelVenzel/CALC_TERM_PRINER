@@ -379,9 +379,6 @@ with abas[1]:
     </style>
     """, unsafe_allow_html=True)
     
-    st.title("Cálculo Térmico - IsolaFácil")
-    st.markdown("Esta aba calcula o retorno financeiro com base na economia térmica por m².")
-    
     combustiveis = {
         "Óleo Combustível (BPF)": {"valor": 3.50, "pc_kwh": 10.77, "eficiencia": 0.80},
         "Gás Natural": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
@@ -458,4 +455,6 @@ with abas[1]:
             st.markdown(f"📉 **Economia percentual:** {economia_pct:.1f}%")
         else:
             st.error("O cálculo não convergiu.")
+            
+   st.markdown("Esta aba calcula o retorno financeiro com base em valores médios nacionais do custo dos combustíveis.")
 
