@@ -173,6 +173,9 @@ with st.sidebar.expander("Opções", expanded=False):
                     excluir_isolante(i['nome'])
                     st.success(f"Isolante {i['nome']} excluído com sucesso!")
 
+if aba == "Cálculo Térmico":
+    # ... código térmico aqui ...
+
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
 
@@ -307,7 +310,8 @@ st.markdown("""
 """)
 
 
-
+elif aba == "Cálculo Financeiro":
+    # ... código financeiro aqui ...
 
 # --- ABA CÁLCULO FINANCEIRO ---
 st.header("Cálculo Financeiro")
