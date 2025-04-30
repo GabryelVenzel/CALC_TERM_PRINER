@@ -453,8 +453,10 @@ with abas[1]:
             st.warning(f"Perda sem isolante: {perda_sem:.3f} kW/m²")
             st.markdown(f"💰 **Economia estimada por hora:** R$ {economia_rs:.2f}/m²·h")
             st.markdown(f"📉 **Economia percentual:** {economia_pct:.1f}%")
+
+            st.markdown("Esta aba calcula o retorno financeiro com base em valores médios nacionais do custo dos combustíveis.")
         else:
             st.error("O cálculo não convergiu.")
             
-   st.markdown("Esta aba calcula o retorno financeiro com base em valores médios nacionais do custo dos combustíveis.")
+  
 
