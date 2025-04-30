@@ -451,7 +451,7 @@ with abas[1]:
             st.success(f"Temperatura da face fria: {Tf:.1f} °C")
             st.info(f"Perda com isolante: {perda_com:.3f} kW/m²")
             st.warning(f"Perda sem isolante: {perda_sem:.3f} kW/m²")
-            st.success(f"💰 **Economia estimada por hora:** R$ {economia_rs:.2f}/m²·h")
+            st.success(f"💰 **Economia estimada por hora por metro quadrado:** R$ {economia_rs:.2f}")
             st.success(f"📉 **Economia percentual:** {economia_pct:.1f}%")
 
             st.markdown("Esta aba calcula o retorno financeiro com base em valores médios nacionais do custo dos combustíveis.")
