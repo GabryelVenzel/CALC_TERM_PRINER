@@ -317,7 +317,7 @@ with abas[0]:
         st.session_state.convergiu = convergiu
         st.session_state.q_transferencia = q_transferencia
         st.session_state.Tf = Tf
-    
+
     # --- RESULTADOS ---
     st.subheader("Resultados")
     
