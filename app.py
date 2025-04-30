@@ -36,10 +36,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- LOGO ---
-logo = Image.open("logo.png")
-st.image(logo, width=300)
-
 # --- CONECTAR COM GOOGLE SHEETS ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 gcp_json = json.loads(st.secrets["GCP_JSON"])
