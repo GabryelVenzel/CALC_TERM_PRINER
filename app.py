@@ -380,9 +380,9 @@ with abas[1]:
     """, unsafe_allow_html=True)
     
     combustiveis = {
-        "Óleo Combustível (BPF)": {"valor": 3.50, "pc_kwh": 10.77, "eficiencia": 0.80},
+        "Óleo Combustível (BPF)": {"valor": 3.50, "pc_kwh": 11.34, "eficiencia": 0.80},
         "Gás Natural": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
-        "Lenha Eucalipto (30% umidade)": {"valor": 200.00, "pc_kwh": 2.62, "eficiencia": 0.70},
+        "Lenha Eucalipto (30% umidade)": {"valor": 0.20, "pc_kwh": 3.50, "eficiencia": 0.70},
     }
 
     material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
