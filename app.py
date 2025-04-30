@@ -108,18 +108,6 @@ abas = st.tabs(["Cálculo Térmico", "Cálculo Financeiro"])
 
 
 with abas[0]:
-    import streamlit as st
-    import math
-    import time
-    from PIL import Image
-    import gspread
-    from oauth2client.service_account import ServiceAccountCredentials
-    import pandas as pd
-    import json
-    
-    # --- CONFIGURAÇÕES GERAIS ---
-    st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
-    
     # --- ESTILO VISUAL ---
     st.markdown("""
     <style>
