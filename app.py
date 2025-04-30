@@ -8,6 +8,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
 
+st.image(logo, width=300)
+
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
 
@@ -98,8 +100,6 @@ if 'q_transferencia' not in st.session_state:
     st.session_state.q_transferencia = None
 if 'Tf' not in st.session_state:
     st.session_state.Tf = None
-
-   st.image(logo, width=300)
 
 # --- INTERFACE COM TABS ---
 abas = st.tabs(["Cálculo Térmico", "Cálculo Financeiro"])
