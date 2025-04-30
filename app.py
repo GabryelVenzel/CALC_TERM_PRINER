@@ -392,7 +392,7 @@ with abas[1]:
     logo = Image.open("logo.png")
     st.image(logo, width=300)
     
-    st.header("Cálculo Financeiro")
+    st.title("Cálculo Térmico - IsolaFácil")
     st.markdown("Esta aba calcula o retorno financeiro com base na economia térmica por m².")
     
     combustiveis = {
