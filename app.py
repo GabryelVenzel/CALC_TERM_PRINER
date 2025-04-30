@@ -104,34 +104,6 @@ abas = st.tabs(["Cálculo Térmico", "Cálculo Financeiro"])
 
 
 with abas[0]:
-    # --- ESTILO VISUAL ---
-    st.markdown("""
-    <style>
-        .main {
-            background-color: #FFFFFF;
-        }
-        .block-container {
-            padding-top: 2rem;
-        }
-        h1, h2, h3, h4 {
-            color: #003366;
-        }
-        .stButton>button {
-            background-color: #198754;
-            color: white;
-            border-radius: 8px;
-            height: 3em;
-            width: 100%;
-        }
-        input[type="radio"], input[type="checkbox"] {
-            accent-color: #003366;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # --- LOGO ---
-    logo = Image.open("logo.png")
-    st.image(logo, width=300)
     
     # --- FUNÇÕES AUXILIARES ---
     def carregar_isolantes():
