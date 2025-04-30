@@ -8,8 +8,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
 
-st.image(logo, width=300)
-
 # --- CONFIGURAÇÕES GERAIS ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
 
@@ -317,9 +315,6 @@ with abas[0]:
         st.session_state.convergiu = convergiu
         st.session_state.q_transferencia = q_transferencia
         st.session_state.Tf = Tf
-
-    # --- RESULTADOS ---
-    st.subheader("Resultados")
     
     if st.session_state.convergiu is not None:
         if st.session_state.convergiu:
@@ -339,6 +334,9 @@ with abas[0]:
             acumulado += frac_espessuras[i]
             Ti = Tq - (delta_T * acumulado)
             temperaturas_intermed.append(Ti)
+
+        # --- RESULTADOS ---
+        st.subheader("Resultados")
     
         # Exibição dos resultados
         for idx, temp in enumerate(temperaturas_intermed):
