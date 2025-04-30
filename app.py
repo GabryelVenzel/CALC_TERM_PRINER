@@ -99,6 +99,8 @@ if 'q_transferencia' not in st.session_state:
 if 'Tf' not in st.session_state:
     st.session_state.Tf = None
 
+   st.image(logo, width=300)
+
 # --- INTERFACE COM TABS ---
 abas = st.tabs(["Cálculo Térmico", "Cálculo Financeiro"])
 
@@ -390,7 +392,6 @@ with abas[1]:
     
     # --- LOGO ---
     logo = Image.open("logo.png")
-    st.image(logo, width=300)
     
     st.title("Cálculo Térmico - IsolaFácil")
     st.markdown("Esta aba calcula o retorno financeiro com base na economia térmica por m².")
