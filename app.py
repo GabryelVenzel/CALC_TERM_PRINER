@@ -391,6 +391,35 @@ with abas[0]:
     """)
 
 with abas[1]:
+  # --- ESTILO VISUAL ---
+    st.markdown("""
+    <style>
+        .main {
+            background-color: #FFFFFF;
+        }
+        .block-container {
+            padding-top: 2rem;
+        }
+        h1, h2, h3, h4 {
+            color: #003366;
+        }
+        .stButton>button {
+            background-color: #198754;
+            color: white;
+            border-radius: 8px;
+            height: 3em;
+            width: 100%;
+        }
+        input[type="radio"], input[type="checkbox"] {
+            accent-color: #003366;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # --- LOGO ---
+    logo = Image.open("logo.png")
+    st.image(logo, width=300)
+    
     st.header("Cálculo Financeiro")
     st.markdown("Esta aba calcula o retorno financeiro com base na economia térmica por m².")
     
