@@ -133,14 +133,6 @@ with abas[0]:
     logo = Image.open("logo.png")
     st.image(logo, width=300)
     
-    # --- CONECTAR COM GOOGLE SHEETS ---
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    gcp_json = json.loads(st.secrets["GCP_JSON"])
-    credentials = ServiceAccountCredentials.from_json_keyfile_dict(gcp_json, scope)
-    client = gspread.authorize(credentials)
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1W1JHXAnGJeWbGVK0AmORux5I7CYTEwoBIvBfVKO40aY")
-    worksheet = sheet.worksheet("Isolantes")
-    
     # --- FUNÇÕES AUXILIARES ---
     def carregar_isolantes():
         df = pd.DataFrame(worksheet.get_all_records())
