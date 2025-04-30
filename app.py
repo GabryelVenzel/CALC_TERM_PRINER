@@ -39,6 +39,8 @@ st.markdown("""
 logo = Image.open("logo.png")
 st.image(logo, width=300)
 
+aba = st.sidebar.radio("Escolha a aba", ["Cálculo Térmico", "Cálculo Financeiro"])
+
 # --- CONECTAR COM GOOGLE SHEETS ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 gcp_json = json.loads(st.secrets["GCP_JSON"])
