@@ -8,34 +8,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
 
-# --- CONFIGURAÇÕES GERAIS ---
-st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
-
-# --- ESTILO VISUAL ---
-st.markdown("""
-<style>
-    .main {
-        background-color: #FFFFFF;
-    }
-    .block-container {
-        padding-top: 2rem;
-    }
-    h1, h2, h3, h4 {
-        color: #003366;
-    }
-    .stButton>button {
-        background-color: #198754;
-        color: white;
-        border-radius: 8px;
-        height: 3em;
-        width: 100%;
-    }
-    input[type="radio"], input[type="checkbox"] {
-        accent-color: #003366;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # --- CONECTAR COM GOOGLE SHEETS ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 gcp_json = json.loads(st.secrets["GCP_JSON"])
