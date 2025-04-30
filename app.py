@@ -385,7 +385,7 @@ with abas[1]:
         "Lenha Eucalipto (30% umidade)": {"valor": 200.00, "pc_kwh": 2.62, "eficiencia": 0.70},
     }
 
-        material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
+    material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
     isolante_fin = next(i for i in carregar_isolantes() if i['nome'] == material_fin)
     k_func_fin = isolante_fin["k_func"]
     
