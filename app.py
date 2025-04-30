@@ -1,4 +1,3 @@
-
 import streamlit as st
 import math
 import time
@@ -467,3 +466,4 @@ with abas[1]:
             st.markdown(f"📉 **Economia percentual:** {economia_pct:.1f}%")
         else:
             st.error("O cálculo não convergiu.")
+
