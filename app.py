@@ -304,3 +304,87 @@ st.markdown("""
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
 
+
+
+
+# --- ABA CÁLCULO FINANCEIRO ---
+st.header("Cálculo Financeiro")
+st.markdown("Esta aba calcula o retorno financeiro com base na economia térmica por m².")
+
+combustiveis = {
+    "Óleo Combustível (BPF)": {"valor": 3.50, "pc_kwh": 10.77, "eficiencia": 0.80},
+    "Gás Natural": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
+    "Lenha Eucalipto (30% umidade)": {"valor": 200.00, "pc_kwh": 2.62, "eficiencia": 0.70},
+}
+
+col1, col2 = st.columns(2)
+with col1:
+    Tq_fin = st.number_input("Temperatura da face quente [°C]", value=250.0, key="Tq_fin")
+with col2:
+    To_fin = st.number_input("Temperatura ambiente [°C]", value=30.0, key="To_fin")
+
+espessura_fin = st.number_input("Espessura do isolante [mm]", value=51.0, key="esp_fin") / 1000
+
+material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
+isolante_fin = next(i for i in carregar_isolantes() if i['nome'] == material_fin)
+k_func_fin = isolante_fin["k_func"]
+
+combustivel_sel = st.selectbox("Tipo de combustível", list(combustiveis.keys()))
+comb = combustiveis[combustivel_sel]
+valor_comb = comb["valor"]
+pc = comb["pc_kwh"]
+ef = comb["eficiencia"]
+
+if st.button("Calcular Economia Financeira"):
+    Tf = To_fin + 10.0
+    max_iter = 1000
+    step = 100.0
+    min_step = 0.01
+    tolerancia = 1.0
+    erro_anterior = None
+    convergiu = False
+
+    for _ in range(max_iter):
+        T_med = (Tq_fin + Tf) / 2
+        k = calcular_k(k_func_fin, T_med)
+        if k is None:
+            break
+
+        q_cond = k * (Tq_fin - Tf) / espessura_fin
+        Tf_K = Tf + 273.15
+        To_K = To_fin + 273.15
+        h_conv = calcular_h_conv(Tf, To_fin, espessura_fin)
+        q_rad = e * sigma * (Tf_K**4 - To_K**4)
+        q_conv = h_conv * (Tf - To_fin)
+        q_total = q_conv + q_rad
+        erro = q_cond - q_total
+
+        if abs(erro) < tolerancia:
+            convergiu = True
+            break
+
+        if erro_anterior is not None and erro * erro_anterior < 0:
+            step = max(min_step, step * 0.5)
+        Tf += step if erro > 0 else -step
+        erro_anterior = erro
+
+    if convergiu:
+        perda_com = q_total / 1000
+        hr_sem = e * sigma * ((Tq_fin + 273.15)**4 - (To_fin + 273.15)**4)
+        h_total_sem = calcular_h_conv(Tq_fin, To_fin, espessura_fin) + hr_sem / (Tq_fin - To_fin)
+        q_sem_isolante = h_total_sem * (Tq_fin - To_fin)
+        perda_sem = q_sem_isolante / 1000
+        economia_kw = perda_sem - perda_com
+        economia_kwh = economia_kw / ef
+        custo_kwh = valor_comb / pc
+        economia_rs = economia_kwh * custo_kwh
+        economia_pct = 100 * (1 - perda_com / perda_sem) if perda_sem != 0 else 0
+
+        st.success(f"Temperatura da face fria: {Tf:.1f} °C")
+        st.info(f"Perda com isolante: {perda_com:.3f} kW/m²")
+        st.warning(f"Perda sem isolante: {perda_sem:.3f} kW/m²")
+        st.markdown(f"💰 **Economia estimada por hora:** R$ {economia_rs:.2f}/m²·h")
+        st.markdown(f"📉 **Economia percentual:** {economia_pct:.1f}%")
+    else:
+        st.error("O cálculo não convergiu.")
+
