@@ -390,9 +390,6 @@ with abas[1]:
     </style>
     """, unsafe_allow_html=True)
     
-    # --- LOGO ---
-    logo = Image.open("logo.png")
-    
     st.title("Cálculo Térmico - IsolaFácil")
     st.markdown("Esta aba calcula o retorno financeiro com base na economia térmica por m².")
     
