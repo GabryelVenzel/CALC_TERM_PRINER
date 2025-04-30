@@ -98,9 +98,11 @@ if 'q_transferencia' not in st.session_state:
 if 'Tf' not in st.session_state:
     st.session_state.Tf = None
 
+# --- INTERFACE PRINCIPAL ---
+st.title("Calculadora IsolaFácil")
+
 # --- INTERFACE COM TABS ---
 abas = st.tabs(["Cálculo Térmico", "Cálculo Financeiro"])
-
 
 with abas[0]:
     
@@ -227,9 +229,6 @@ with abas[0]:
                     if st.button(f"Excluir {i['nome']}"):
                         excluir_isolante(i['nome'])
                         st.success(f"Isolante {i['nome']} excluído com sucesso!")
-    
-    # --- INTERFACE PRINCIPAL ---
-    st.title("Cálculo Térmico - IsolaFácil")
     
     isolantes = carregar_isolantes()
     materiais = [i['nome'] for i in isolantes]
