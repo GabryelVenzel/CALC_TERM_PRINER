@@ -39,8 +39,6 @@ st.markdown("""
 logo = Image.open("logo.png")
 st.image(logo, width=300)
 
-aba = st.sidebar.radio("Escolha a aba", ["Cálculo Térmico", "Cálculo Financeiro"])
-
 # --- CONECTAR COM GOOGLE SHEETS ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 gcp_json = json.loads(st.secrets["GCP_JSON"])
@@ -172,9 +170,6 @@ with st.sidebar.expander("Opções", expanded=False):
                 if st.button(f"Excluir {i['nome']}"):
                     excluir_isolante(i['nome'])
                     st.success(f"Isolante {i['nome']} excluído com sucesso!")
-
-if aba == "Cálculo Térmico":
-    # ... código térmico aqui ...
 
 # --- INTERFACE PRINCIPAL ---
 st.title("Cálculo Térmico - IsolaFácil")
@@ -308,10 +303,6 @@ st.markdown("""
 
 > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
 """)
-
-
-elif aba == "Cálculo Financeiro":
-    # ... código financeiro aqui ...
 
 # --- ABA CÁLCULO FINANCEIRO ---
 st.header("Cálculo Financeiro")
