@@ -384,16 +384,8 @@ with abas[1]:
         "Gás Natural": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
         "Lenha Eucalipto (30% umidade)": {"valor": 200.00, "pc_kwh": 2.62, "eficiencia": 0.70},
     }
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        Tq_fin = st.number_input("Temperatura da face quente [°C]", value=250.0, key="Tq_fin")
-    with col2:
-        To_fin = st.number_input("Temperatura ambiente [°C]", value=30.0, key="To_fin")
-    
-    espessura_fin = st.number_input("Espessura do isolante [mm]", value=51.0, key="esp_fin") / 1000
-    
-    material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
+
+        material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
     isolante_fin = next(i for i in carregar_isolantes() if i['nome'] == material_fin)
     k_func_fin = isolante_fin["k_func"]
     
@@ -402,6 +394,14 @@ with abas[1]:
     valor_comb = comb["valor"]
     pc = comb["pc_kwh"]
     ef = comb["eficiencia"]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        Tq_fin = st.number_input("Temperatura da face quente [°C]", value=250.0, key="Tq_fin")
+    with col2:
+        To_fin = st.number_input("Temperatura ambiente [°C]", value=30.0, key="To_fin")
+    
+    espessura_fin = st.number_input("Espessura do isolante [mm]", value=51.0, key="esp_fin") / 1000
     
     if st.button("Calcular Economia Financeira"):
         Tf = To_fin + 10.0
