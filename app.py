@@ -98,6 +98,10 @@ if 'q_transferencia' not in st.session_state:
 if 'Tf' not in st.session_state:
     st.session_state.Tf = None
 
+# --- LOGO ---
+logo = Image.open("logo.png")
+st.image(logo, width=300)
+
 # --- INTERFACE PRINCIPAL ---
 st.title("Calculadora IsolaFácil")
 
