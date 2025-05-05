@@ -391,9 +391,25 @@ with abas[1]:
     
     combustivel_sel = st.selectbox("Tipo de combustível", list(combustiveis.keys()))
     comb = combustiveis[combustivel_sel]
-    valor_comb = comb["valor"]
+    valor_padrao = comb["valor"]
     pc = comb["pc_kwh"]
     ef = comb["eficiencia"]
+
+    col_cb1, col_cb2 = st.columns([2, 2])
+    with col_cb1:
+        editar_valor = st.checkbox("Editar valor do combustível")
+    with col_cb2:
+        if editar_valor:
+            valor_comb = st.number_input(
+                "Custo combustível (R$/kg ou R$/Nm³)",
+                min_value=0.0,
+                value=valor_padrao,
+                step=0.01,
+                key="valor_editado"
+            )
+        else:
+            valor_comb = valor_padrao
+            st.markdown(f"<span style='color:gray;'>Valor usado: R$ {valor_comb:.2f} (médio)</span>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -402,7 +418,7 @@ with abas[1]:
         To_fin = st.number_input("Temperatura ambiente [°C]", value=30.0, key="To_fin")
     
     espessura_fin = st.number_input("Espessura do isolante [mm]", value=51.0, key="esp_fin") / 1000
-    
+
     if st.button("Calcular Economia Financeira"):
         Tf = To_fin + 10.0
         max_iter = 1000
@@ -411,13 +427,13 @@ with abas[1]:
         tolerancia = 1.0
         erro_anterior = None
         convergiu = False
-    
+
         for _ in range(max_iter):
             T_med = (Tq_fin + Tf) / 2
             k = calcular_k(k_func_fin, T_med)
             if k is None:
                 break
-    
+
             q_cond = k * (Tq_fin - Tf) / espessura_fin
             Tf_K = Tf + 273.15
             To_K = To_fin + 273.15
@@ -426,16 +442,16 @@ with abas[1]:
             q_conv = h_conv * (Tf - To_fin)
             q_total = q_conv + q_rad
             erro = q_cond - q_total
-    
+
             if abs(erro) < tolerancia:
                 convergiu = True
                 break
-    
+
             if erro_anterior is not None and erro * erro_anterior < 0:
                 step = max(min_step, step * 0.5)
             Tf += step if erro > 0 else -step
             erro_anterior = erro
-    
+
         if convergiu:
             perda_com = q_total / 1000
             hr_sem = e * sigma * ((Tq_fin + 273.15)**4 - (To_fin + 273.15)**4)
@@ -447,7 +463,7 @@ with abas[1]:
             custo_kwh = valor_comb / pc
             economia_rs = economia_kwh * custo_kwh
             economia_pct = 100 * (1 - perda_com / perda_sem) if perda_sem != 0 else 0
-    
+
             st.success(f"Temperatura da face fria: {Tf:.1f} °C")
             st.info(f"Perda com isolante: {perda_com:.3f} kW/m²")
             st.warning(f"Perda sem isolante: {perda_sem:.3f} kW/m²")
@@ -457,5 +473,3 @@ with abas[1]:
             st.markdown("Esta aba calcula o retorno financeiro com base em valores médios nacionais do custo dos combustíveis.")
         else:
             st.error("O cálculo não convergiu.")
-            
-  
