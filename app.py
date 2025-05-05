@@ -459,4 +459,3 @@ with abas[1]:
             st.error("O cálculo não convergiu.")
             
   
-
