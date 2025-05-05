@@ -401,7 +401,7 @@ with abas[1]:
     with col_cb2:
         if editar_valor:
             valor_comb = st.number_input(
-                "Custo combustível (R$)",
+                "Custo combustível (R$/kg)",
                 min_value=0.0,
                 value=valor_padrao,
                 step=0.01,
