@@ -382,7 +382,7 @@ with abas[1]:
     combustiveis = {
         "Óleo Combustível BPF (kg)": {"valor": 3.50, "pc_kwh": 11.34, "eficiencia": 0.80},
         "Gás Natural (m³)": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
-        "Lenha Eucalipto 30% umidade (ton)": {"valor": 200, "pc_kwh": 3500, "eficiencia": 0.70},
+        "Lenha Eucalipto 30% umidade (ton)": {"valor": 0.200, "pc_kwh": 3.500, "eficiencia": 0.70},
         "Vapor (ton)": {"valor": 100.00, "pc_kwh": 650.00, "eficiencia": 1.00}  # Nova opção para tonelada de vapor
     }
 
