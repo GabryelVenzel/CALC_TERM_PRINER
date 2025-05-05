@@ -380,9 +380,9 @@ with abas[1]:
     """, unsafe_allow_html=True)
     
     combustiveis = {
-        "Óleo Combustível (BPF)": {"valor": 3.50, "pc_kwh": 11.34, "eficiencia": 0.80},
-        "Gás Natural": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
-        "Lenha Eucalipto (30% umidade)": {"valor": 0.20, "pc_kwh": 3.50, "eficiencia": 0.70},
+        "Óleo Combustível BPF (kg)": {"valor": 3.50, "pc_kwh": 11.34, "eficiencia": 0.80},
+        "Gás Natural (m³)": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
+        "Lenha Eucalipto 30% umidade (ton)": {"valor": 0.20, "pc_kwh": 3.50, "eficiencia": 0.70},
     }
 
     material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
@@ -401,7 +401,7 @@ with abas[1]:
     with col_cb2:
         if editar_valor:
             valor_comb = st.number_input(
-                "Custo combustível (R$/kg)",
+                "Custo combustível (R$)",
                 min_value=0.0,
                 value=valor_padrao,
                 step=0.01,
