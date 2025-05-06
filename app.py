@@ -383,7 +383,8 @@ with abas[1]:
         "Óleo Combustível BPF (kg)": {"valor": 3.50, "pc_kwh": 11.34, "eficiencia": 0.80},
         "Gás Natural (m³)": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
         "Lenha Eucalipto 30% umidade (ton)": {"valor": 200.00, "pc_kwh": 3500.00, "eficiencia": 0.70},
-        "Vapor (ton)": {"valor": 100.00, "pc_kwh": 650.00, "eficiencia": 1.00}  # Nova opção para tonelada de vapor
+        "Vapor (ton)": {"valor": 100.00, "pc_kwh": 650.00, "eficiencia": 1.00},
+        "Eletricidade (kWh)": {"valor": 0.75, "pc_kwh": 1.00, "eficiencia": 1.00}  # Nova opção adicionada
     }
 
     material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
