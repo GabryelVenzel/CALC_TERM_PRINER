@@ -456,8 +456,14 @@ with abas[1]:
 
         if convergiu:
             perda_com = q_total / 1000
-            hr_sem = e * sigma * ((Tq_fin + 273.15)**4 - (To_fin + 273.15)**4)
-            h_total_sem = calcular_h_conv(Tq_fin, To_fin, espessura_fin) + hr_sem / (Tq_fin - To_fin)
+            delta_T = Tq_fin - To_fin
+            
+            h_conv_sem = 1.31 * (delta_T ** (1/3))  # para placa vertical em ar
+            Tfq_K = Tq_fin + 273.15
+            To_K = To_fin + 273.15
+            hr_sem = e * sigma * (Tfq_K**4 - To_K**4) / delta_T
+            h_total_sem = h_conv_sem + hr_sem
+            
             q_sem_isolante = h_total_sem * (Tq_fin - To_fin)
             perda_sem = q_sem_isolante / 1000
             economia_kw = perda_sem - perda_com
