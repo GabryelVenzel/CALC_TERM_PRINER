@@ -491,11 +491,12 @@ with abas[1]:
             st.info(f"Perda com isolante: {perda_com:.3f} kW/m²")
             st.warning(f"Perda sem isolante: {perda_sem:.3f} kW/m²")
             st.success(f"💰 **Economia estimada por hora por metro quadrado:** R$ {economia_rs:.2f}")
-            st.success(f"📉 **Economia percentual:** {economia_pct:.1f}%")
-
             if calculo_mensal:
                 economia_mensal = economia_rs * metragem_quadrada * horas_por_dia * dias_por_semana * 4
-                st.success(f"📆 **Economia mensal total estimada:** R$ {economia_mensal:.2f}")
+                st.success(f"📆 **Economia mensal total estimada:** R$ {economia_mensal:.2f}")            
+            st.success(f"📉 **Economia percentual:** {economia_pct:.1f}%")
+
+
 
             st.markdown("Esta aba calcula o retorno financeiro com base em valores médios nacionais do custo dos combustíveis.")
         else:
