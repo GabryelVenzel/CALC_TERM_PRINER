@@ -424,12 +424,16 @@ with abas[1]:
     # NOVOS CAMPOS
     calculo_mensal = st.checkbox("Efetuar cálculo de retorno mensal")
     if calculo_mensal:
+        col1, col2, col3 = st.columns(3)
+        with col1:
         metragem_quadrada = st.number_input(
             "Metragem quadrada do projeto (m²)", min_value=0.0, value=10.0, step=1.0, format="%.2f"
         )
+        with col2:
         horas_por_dia = st.number_input(
             "Horas de operação do equipamento no dia", min_value=0.0, value=8.0, step=1.0, format="%.2f"
         )
+        with col3:
         dias_por_semana = st.number_input(
             "Dias de operação do equipamento na semana", min_value=1, max_value=7, value=5, step=1
         )
