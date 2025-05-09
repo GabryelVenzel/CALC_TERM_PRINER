@@ -240,14 +240,14 @@ with abas[0]:
     isolante = next(i for i in isolantes if i['nome'] == material_selecionado)
     k_func_str = isolante['k_func']
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     with col2:
         To = st.number_input("Temperatura ambiente [°C]", value=30.0)
-    
-    numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
-    espessuras = []
+    with col3:
+        numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
+        espessuras = []
     
     if numero_camadas == 1:
         L1 = st.number_input("Espessura da camada 1 [mm]", value=51.0, key="L1")
