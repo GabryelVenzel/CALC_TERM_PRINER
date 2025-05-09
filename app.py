@@ -384,7 +384,7 @@ with abas[1]:
         "Gás Natural (m³)": {"valor": 3.60, "pc_kwh": 9.65, "eficiencia": 0.75},
         "Lenha Eucalipto 30% umidade (ton)": {"valor": 200.00, "pc_kwh": 3500.00, "eficiencia": 0.70},
         "Vapor (ton)": {"valor": 100.00, "pc_kwh": 650.00, "eficiencia": 1.00},
-        "Eletricidade (kWh)": {"valor": 0.75, "pc_kwh": 1.00, "eficiencia": 1.00}  # Nova opção adicionada
+        "Eletricidade (kWh)": {"valor": 0.75, "pc_kwh": 1.00, "eficiencia": 1.00}
     }
 
     material_fin = st.selectbox("Escolha o material do isolante", [i['nome'] for i in carregar_isolantes()], key="mat_fin")
@@ -420,6 +420,19 @@ with abas[1]:
         To_fin = st.number_input("Temperatura ambiente [°C]", value=30.0, key="To_fin")
     
     espessura_fin = st.number_input("Espessura do isolante [mm]", value=51.0, key="esp_fin") / 1000
+
+    # NOVOS CAMPOS
+    calculo_mensal = st.checkbox("Efetuar cálculo de retorno mensal")
+    if calculo_mensal:
+        metragem_quadrada = st.number_input(
+            "Metragem quadrada do projeto (m²)", min_value=0.0, value=10.0, step=1.0, format="%.2f"
+        )
+        horas_por_dia = st.number_input(
+            "Horas de operação do equipamento no dia", min_value=0.0, value=8.0, step=1.0, format="%.2f"
+        )
+        dias_por_semana = st.number_input(
+            "Dias de operação do equipamento na semana", min_value=1, max_value=7, value=5, step=1
+        )
 
     if st.button("Calcular Economia Financeira"):
         Tf = To_fin + 10.0
@@ -477,6 +490,10 @@ with abas[1]:
             st.warning(f"Perda sem isolante: {perda_sem:.3f} kW/m²")
             st.success(f"💰 **Economia estimada por hora por metro quadrado:** R$ {economia_rs:.2f}")
             st.success(f"📉 **Economia percentual:** {economia_pct:.1f}%")
+
+            if calculo_mensal:
+                economia_mensal = economia_rs * metragem_quadrada * horas_por_dia * dias_por_semana * 4
+                st.success(f"📆 **Economia mensal total estimada:** R$ {economia_mensal:.2f}")
 
             st.markdown("Esta aba calcula o retorno financeiro com base em valores médios nacionais do custo dos combustíveis.")
         else:
