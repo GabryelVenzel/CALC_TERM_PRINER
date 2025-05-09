@@ -245,9 +245,9 @@ with abas[0]:
         Tq = st.number_input("Temperatura da face quente [°C]", value=250.0)
     with col2:
         To = st.number_input("Temperatura ambiente [°C]", value=30.0)
-    with col3:
-        numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
-        espessuras = []
+
+     numero_camadas = st.number_input("Número de camadas", min_value=1, max_value=3, value=1, step=1)
+     espessuras = []
     
     if numero_camadas == 1:
         L1 = st.number_input("Espessura da camada 1 [mm]", value=51.0, key="L1")
