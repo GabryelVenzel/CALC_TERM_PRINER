@@ -413,13 +413,13 @@ with abas[1]:
             valor_comb = valor_padrao
             st.markdown(f"<span style='color:gray;'>Valor usado: R$ {valor_comb:.2f} (médio)</span>", unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         Tq_fin = st.number_input("Temperatura da face quente [°C]", value=250.0, key="Tq_fin")
     with col2:
         To_fin = st.number_input("Temperatura ambiente [°C]", value=30.0, key="To_fin")
-    
-    espessura_fin = st.number_input("Espessura do isolante [mm]", value=51.0, key="esp_fin") / 1000
+    with col3:
+        espessura_fin = st.number_input("Espessura do isolante [mm]", value=51.0, key="esp_fin") / 1000
 
     # NOVOS CAMPOS
     calculo_mensal = st.checkbox("Efetuar cálculo de retorno mensal")
