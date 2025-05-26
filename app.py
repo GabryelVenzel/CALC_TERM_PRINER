@@ -356,6 +356,13 @@ with abas[0]:
 
 with abas[1]:
 
+   # Seleção do isolante
+   isolantes_frio = carregar_isolantes()
+   nomes_isolantes_frio = [i["nome"] for i in isolantes_frio]
+   material_frio = st.selectbox("Escolha o material do isolante", nomes_isolantes_frio, key="mat_frio")
+   isolante_frio = next(i for i in isolantes_frio if i["nome"] == material_frio)
+   k_func_str_frio = isolante_frio["k_func"]
+
    # Entradas do usuário
    col1, col2, col3 = st.columns(3)
    with col1:
