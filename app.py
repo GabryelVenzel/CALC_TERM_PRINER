@@ -272,7 +272,7 @@ with abas[0]:
     L_total = sum(espessuras) / 1000
     
     # --- BOTÃO DE CALCULAR ---
-    if st.button("Calcular"):
+    if st.button("Calcular Face Fria"):
         Tf = To + 10.0
         max_iter = 1000
         step = 100.0
@@ -373,7 +373,7 @@ with abas[1]:
        UR = st.number_input("Umidade relativa do ar [%]", min_value=0.0, max_value=100.0, value=70.0, step=1.0)
 
    # Botão de cálculo
-   if st.button("Calcular"):
+   if st.button("Calcular Condensação"):
    
        # --- 1. Calcular temperatura de orvalho (Magnus)
        def calcular_ponto_orvalho(Ta, UR):
