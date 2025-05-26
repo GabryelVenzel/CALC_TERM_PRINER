@@ -106,7 +106,7 @@ st.image(logo, width=300)
 st.title("Calculadora IsolaFácil")
 
 # --- INTERFACE COM TABS ---
-abas = st.tabs(["Cálculo Térmico Quente", "Cálculo Financeiro"])
+abas = st.tabs(["Cálculo Térmico Quente", "Cálculo Financeiro", "Cálculo Térmico Frio"])
 
 with abas[0]:
     
