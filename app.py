@@ -353,8 +353,6 @@ with abas[0]:
     > **Nota:** Os cálculos são realizados de acordo com a norma ASTM C680.
     """)
 
-with abas[1]:
-
 with abas[2]:
     # --- ESTILO VISUAL ---
     st.markdown("""
