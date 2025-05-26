@@ -415,7 +415,7 @@ with abas[2]:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        Tq_fin = st.number_input("Temperatura da face quente [°C]", value=250.0, key="Tq_fin")
+        Tq_fin = st.number_input("Temperatura da operação [°C]", value=250.0, key="Tq_fin")
     with col2:
         To_fin = st.number_input("Temperatura ambiente [°C]", value=30.0, key="To_fin")
     with col3:
