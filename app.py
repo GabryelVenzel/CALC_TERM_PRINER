@@ -272,7 +272,7 @@ with abas[0]:
     L_total = sum(espessuras) / 1000
     
     # --- BOTÃO DE CALCULAR ---
-    if st.button("Calcular Temperatura da Face Fria"):
+    if st.button("Calcular"):
         Tf = To + 10.0
         max_iter = 1000
         step = 100.0
@@ -373,7 +373,7 @@ with abas[1]:
        UR = st.number_input("Umidade relativa do ar [%]", min_value=0.0, max_value=100.0, value=70.0, step=1.0)
 
    # Botão de cálculo
-   if st.button("Calcular Espessura Mínima para Evitar Condensação"):
+   if st.button("Calcular"):
    
        # --- 1. Calcular temperatura de orvalho (Magnus)
        def calcular_ponto_orvalho(Ta, UR):
@@ -438,7 +438,6 @@ with abas[1]:
 
        if convergiu:
            st.success(f"✅ Espessura mínima necessária: {L * 1000:.1f} mm".replace('.', ','))
-           st.info(f"🌡️ Temperatura da face externa: {Tf:.1f} °C")
            st.info(f"💧 Temperatura de orvalho: {T_orvalho:.1f} °C")
        else:
            st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
