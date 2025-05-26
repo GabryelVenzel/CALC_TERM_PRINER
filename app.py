@@ -578,9 +578,9 @@ with abas[2]:
             economia_rs = economia_kwh * custo_kwh
             economia_pct = 100 * (1 - perda_com / perda_sem) if perda_sem != 0 else 0
 
-            st.success(f"Temperatura da face fria: {Tf:.1f} °C")
-            st.info(f"Perda com isolante: {perda_com:.3f} kW/m²")
-            st.warning(f"Perda sem isolante: {perda_sem:.3f} kW/m²")
+            st.success(f"✅ Temperatura da face fria: {Tf:.1f} °C")
+            st.info(f"⚡ Perda com isolante: {perda_com:.3f} kW/m²")
+            st.warning(f"⚡ Perda sem isolante: {perda_sem:.3f} kW/m²")
             st.success(f"💰 **Economia estimada por hora por metro quadrado:** R$ {economia_rs:.2f}")
             if calculo_mensal:
                 economia_mensal = economia_rs * metragem_quadrada * horas_por_dia * dias_por_semana * 4
