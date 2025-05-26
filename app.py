@@ -356,87 +356,87 @@ with abas[0]:
 
 with abas[1]:
 
-st.subheader("🧊 Cálculo de Espessura Mínima para Evitar Condensação")
+   st.subheader("🧊 Cálculo de Espessura Mínima para Evitar Condensação")
 
-# Entradas do usuário
-col1, col2, col3 = st.columns(3)
-with col1:
-    Ti_frio = st.number_input("Temperatura interna do equipamento [°C]", value=5.0, key="Ti_frio")
-with col2:
-    Ta_frio = st.number_input("Temperatura ambiente [°C]", value=25.0, key="Ta_frio")
-with col3:
-    UR = st.number_input("Umidade relativa do ar [%]", min_value=0.0, max_value=100.0, value=70.0, step=1.0)
+   # Entradas do usuário
+   col1, col2, col3 = st.columns(3)
+   with col1:
+       Ti_frio = st.number_input("Temperatura interna do equipamento [°C]", value=5.0, key="Ti_frio")
+   with col2:
+       Ta_frio = st.number_input("Temperatura ambiente [°C]", value=25.0, key="Ta_frio")
+   with col3:
+       UR = st.number_input("Umidade relativa do ar [%]", min_value=0.0, max_value=100.0, value=70.0, step=1.0)
 
-# Botão de cálculo
-if st.button("Calcular Espessura Mínima para Evitar Condensação"):
+   # Botão de cálculo
+   if st.button("Calcular Espessura Mínima para Evitar Condensação"):
+   
+       # --- 1. Calcular temperatura de orvalho (Magnus)
+       def calcular_ponto_orvalho(Ta, UR):
+           a, b = 17.27, 237.7
+           alfa = ((a * Ta) / (b + Ta)) + math.log(UR / 100)
+           Td = (b * alfa) / (a - alfa)
+           return Td
 
-    # --- 1. Calcular temperatura de orvalho (Magnus)
-    def calcular_ponto_orvalho(Ta, UR):
-        a, b = 17.27, 237.7
-        alfa = ((a * Ta) / (b + Ta)) + math.log(UR / 100)
-        Td = (b * alfa) / (a - alfa)
-        return Td
+       T_orvalho = calcular_ponto_orvalho(Ta_frio, UR)
 
-    T_orvalho = calcular_ponto_orvalho(Ta_frio, UR)
+       # --- 2. Iterar para encontrar L mínimo
+       L = 0.001  # espessura inicial em metros
+       L_max = 0.5  # limite superior em metros (evitar loop infinito)
+       passo_L = 0.001  # incremento de espessura (1 mm)
+       tolerancia = 0.1  # tolerância para convergência de Tf
 
-    # --- 2. Iterar para encontrar L mínimo
-    L = 0.001  # espessura inicial em metros
-    L_max = 0.5  # limite superior em metros (evitar loop infinito)
-    passo_L = 0.001  # incremento de espessura (1 mm)
-    tolerancia = 0.1  # tolerância para convergência de Tf
+       convergiu = False
+       e = 0.9  # emissividade
+       sigma = 5.67e-8  # constante de Stefan-Boltzmann
+       k_func_str = isolante["k_func"]
 
-    convergiu = False
-    e = 0.9  # emissividade
-    sigma = 5.67e-8  # constante de Stefan-Boltzmann
-    k_func_str = isolante["k_func"]
+       while L <= L_max:
+           # Iterar para encontrar Tf para essa espessura
+           Tf = Ta_frio - 1  # chute inicial (frio)
+           max_iter = 500
+           step = 0.5
+           erro_anterior = None
 
-    while L <= L_max:
-        # Iterar para encontrar Tf para essa espessura
-        Tf = Ta_frio - 1  # chute inicial (frio)
-        max_iter = 500
-        step = 0.5
-        erro_anterior = None
+           for _ in range(max_iter):
+               Tm = (Ti_frio + Tf) / 2
+               k = calcular_k(k_func_str, Tm)
+               if k is None:
+                   break
 
-        for _ in range(max_iter):
-            Tm = (Ti_frio + Tf) / 2
-            k = calcular_k(k_func_str, Tm)
-            if k is None:
-                break
+               q_cond = k * (Ti_frio - Tf) / L
 
-            q_cond = k * (Ti_frio - Tf) / L
+               # h_conv crítico: placa fria voltada para cima
+               delta_T = abs(Ta_frio - Tf)
+               h_conv = 0.54 * (delta_T ** 0.25)
 
-            # h_conv crítico: placa fria voltada para cima
-            delta_T = abs(Ta_frio - Tf)
-            h_conv = 0.54 * (delta_T ** 0.25)
+               # radiação e convecção para ambiente
+               Tf_K = Tf + 273.15
+               Ta_K = Ta_frio + 273.15
+               q_rad = e * sigma * (Tf_K**4 - Ta_K**4)
+               q_conv = h_conv * (Tf - Ta_frio)
+               q_total = q_conv + q_rad
 
-            # radiação e convecção para ambiente
-            Tf_K = Tf + 273.15
-            Ta_K = Ta_frio + 273.15
-            q_rad = e * sigma * (Tf_K**4 - Ta_K**4)
-            q_conv = h_conv * (Tf - Ta_frio)
-            q_total = q_conv + q_rad
+               erro = q_cond - q_total
+               if abs(erro) < tolerancia:
+                   break
 
-            erro = q_cond - q_total
-            if abs(erro) < tolerancia:
-                break
+               if erro_anterior is not None and erro * erro_anterior < 0:
+                   step *= 0.5
+               Tf += step if erro > 0 else -step
+               erro_anterior = erro
 
-            if erro_anterior is not None and erro * erro_anterior < 0:
-                step *= 0.5
-            Tf += step if erro > 0 else -step
-            erro_anterior = erro
+           # Verificação da condição de condensação
+           if Tf >= T_orvalho:
+               convergiu = True
+               break
+           L += passo_L  # aumenta espessura e tenta novamente
 
-        # Verificação da condição de condensação
-        if Tf >= T_orvalho:
-            convergiu = True
-            break
-        L += passo_L  # aumenta espessura e tenta novamente
-
-    if convergiu:
-        st.success(f"✅ Espessura mínima necessária: {L * 1000:.1f} mm".replace('.', ','))
-        st.info(f"🌡️ Temperatura da face externa: {Tf:.1f} °C")
-        st.info(f"💧 Temperatura de orvalho: {T_orvalho:.1f} °C")
-    else:
-        st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+       if convergiu:
+           st.success(f"✅ Espessura mínima necessária: {L * 1000:.1f} mm".replace('.', ','))
+           st.info(f"🌡️ Temperatura da face externa: {Tf:.1f} °C")
+           st.info(f"💧 Temperatura de orvalho: {T_orvalho:.1f} °C")
+       else:
+           st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
 
 
 
