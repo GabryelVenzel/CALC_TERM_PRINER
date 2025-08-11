@@ -1,6 +1,3 @@
-### **Código Refatorado da Aplicação IsolaFácil**
-
-```python
 import streamlit as st
 import math
 import time
@@ -469,5 +466,6 @@ with abas[2]:
 ```
         else:
             st.error("O cálculo não convergiu.")
+
 
 
