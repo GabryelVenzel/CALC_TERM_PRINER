@@ -1,21 +1,3 @@
-Com certeza\! Realizei as modificações que sugeri, focando em refatoração, segurança, performance e experiência do usuário.
-
-A mudança mais significativa foi a **remoção completa da função `eval()`**, o que exigiu uma pequena alteração na forma como os dados dos isolantes são salvos na sua planilha do Google Sheets.
-
-**Ação necessária da sua parte:**
-Para que o novo código funcione, você precisará ajustar sua planilha "Isolantes". Ela não usará mais a coluna `k_func`. Em vez disso, ela precisará ter as seguintes colunas:
-`nome` | `modelo_k` | `k0` | `k1` | `k2` | `k3` | `k4` | `a` | `b`
-\--- | --- | --- | --- | --- | --- | --- | --- | ---
-Lã de Rocha | Polinomial | 0.025 | 0.0001 | 0 | 0 | 0 | |
-Fibra Cerâmica | Exponencial | | | | | | 0.0387 | 0.0019
-Poliuretano | Constante | 0.035 | | | | | |
-
-A interface de "Cadastrar Isolante" já está adaptada para salvar neste novo formato. Você só precisará ajustar os materiais que já existem.
-
-Abaixo está o código refatorado.
-
------
-
 ### **Código Refatorado da Aplicação IsolaFácil**
 
 ```python
@@ -487,4 +469,5 @@ with abas[2]:
 ```
         else:
             st.error("O cálculo não convergiu.")
+
 
