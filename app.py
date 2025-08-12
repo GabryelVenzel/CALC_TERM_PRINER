@@ -10,7 +10,7 @@ from fpdf import FPDF
 from datetime import datetime
 
 # --- CONFIGURAÇÕES GERAIS E ESTILO ---
-st.set_page_config(page_title="Calculadora Térmica Priner", layout="wide")
+st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
 
 st.markdown("""
 <style>
@@ -171,27 +171,24 @@ def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, geometry, emiss
         
     return Tf, None, False
 
+# --- FUNÇÃO DE GERAÇÃO DE PDF ---
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
-    # Título
     pdf.cell(0, 10, "Relatório de Cálculo Térmico - IsolaFácil", 0, 1, "C")
     pdf.ln(10)
     
-    # Data da Simulação
     pdf.set_font("Arial", "", 10)
     data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     pdf.cell(0, 5, f"Data da Simulação: {data_hora}", 0, 1, "R")
     pdf.ln(5)
 
-    # --- Seção de Dados de Entrada ---
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     pdf.set_font("Arial", "", 11)
     
-    # Helper para adicionar linhas
     def add_linha(chave, valor):
         pdf.set_font("Arial", "B", 11)
         pdf.cell(70, 8, f" {chave}:", 0, 0, "L")
@@ -210,7 +207,6 @@ def gerar_pdf(dados):
     add_linha("Emissividade (ε)", str(dados.get("emissividade", "")))
     pdf.ln(10)
 
-    # --- Seção de Resultados ---
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "2. Resultados do Cálculo Térmico", 0, 1, "L")
     
@@ -219,7 +215,6 @@ def gerar_pdf(dados):
     add_linha("Perda de Calor sem Isolante", f"{dados.get('perda_sem_kw', 0):.3f} kW/m²")
     pdf.ln(10)
 
-    # --- Seção Financeira (se houver) ---
     if dados.get("calculo_financeiro", False):
         pdf.set_font("Arial", "B", 12)
         pdf.cell(0, 10, "3. Análise Financeira", 0, 1, "L")
@@ -227,7 +222,6 @@ def gerar_pdf(dados):
         add_linha("Economia Anual", f"R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         add_linha("Redução de Perda", f"{dados.get('reducao_pct', 0):.1f} %")
 
-    # Gera o PDF em memória como bytes
     return pdf.output(dest='S').encode('latin-1')
 
 # --- INICIALIZAÇÃO E INTERFACE PRINCIPAL ---
@@ -247,7 +241,52 @@ if df_isolantes.empty or df_acabamentos.empty:
     st.stop()
 
 # --- INTERFACE LATERAL (ADMIN) ---
-# O código do admin permanece o mesmo, omitido para brevidade
+with st.sidebar.expander("Opções de Administrador", expanded=False):
+    senha = st.text_input("Digite a senha", type="password", key="senha_admin")
+    if senha == "Priner123":
+        aba_admin = st.radio("Escolha a opção", ["Cadastrar Isolante", "Gerenciar Isolantes"])
+        if aba_admin == "Cadastrar Isolante":
+            st.subheader("Cadastrar Novo Isolante")
+            with st.form("cadastro_form", clear_on_submit=True):
+                nome = st.text_input("Nome do Isolante")
+                t_min_cad = st.number_input("Temperatura Mínima (°C)", value=-50)
+                t_max_cad = st.number_input("Temperatura Máxima (°C)", value=1260)
+                modelo_k = st.radio("Modelo de função k(T)", ["Constante", "Linear", "Polinomial", "Exponencial"])
+                k_func = ""
+                
+                if modelo_k == "Constante":
+                    k0 = st.text_input("k₀", "0,035")
+                    k_func = f"{k0}"
+                elif modelo_k == "Linear":
+                    k0 = st.text_input("k₀", "0,030")
+                    k1 = st.text_input("k₁ (coef. de T)", "0,0001")
+                    k_func = f"{k0} + {k1} * T"
+                elif modelo_k == "Polinomial":
+                    k0 = st.text_input("k₀", "0,025")
+                    k1 = st.text_input("k₁ (T¹)", "0,0001")
+                    k2 = st.text_input("k₂ (T²)", "0.0")
+                    k_func = f"{k0} + {k1}*T + {k2}*T**2"
+                elif modelo_k == "Exponencial":
+                    a = st.text_input("a", "0,0387")
+                    b = st.text_input("b", "0,0019")
+                    k_func = f"{a} * math.exp({b} * T)"
+
+                submitted = st.form_submit_button("Cadastrar")
+                if submitted:
+                    if nome.strip() and k_func.strip():
+                        if nome in df_isolantes['nome'].tolist():
+                            st.warning("Já existe um isolante com esse nome.")
+                        else:
+                            cadastrar_isolante(nome, k_func, t_min_cad, t_max_cad)
+                    else:
+                        st.error("Nome e fórmula são obrigatórios.")
+
+        elif aba_admin == "Gerenciar Isolantes":
+            st.subheader("Isolantes Cadastrados")
+            for _, isolante_row in df_isolantes.iterrows():
+                nome_isolante = isolante_row['nome']
+                if st.button(f"Excluir {nome_isolante}", key=f"del_{nome_isolante}"):
+                    excluir_isolante(nome_isolante)
 
 # --- INTERFACE COM TABS ---
 abas = st.tabs(["🔥 Cálculo Térmico e Financeiro", "🧊 Cálculo Térmico Frio"])
@@ -289,9 +328,8 @@ with abas[0]:
     
     calcular_financeiro = st.checkbox("Calcular retorno financeiro")
     if calcular_financeiro:
-        # Lógica de parâmetros financeiros (código completo)
         st.subheader("Parâmetros do Cálculo Financeiro")
-        st.info("💡 Os custos de combustível são pré-configurados com valores médios de mercado. Para um cálculo mais preciso, marque a opção 'Editar custo' e insira o valor do seu fornecedor.")
+        st.info("💡 Os custos de combustível são pré-configurados com valores médios de mercado...")
         combustiveis = {"Óleo BPF (kg)": {"v": 3.50, "pc": 11.34, "ef": 0.80}, "Gás Natural (m³)": {"v": 3.60, "pc": 9.65, "ef": 0.75},"Lenha Eucalipto 30% umidade (ton)": {"v": 200.00, "pc": 3500.00, "ef": 0.70},"Eletricidade (kWh)": {"v": 0.75, "pc": 1.00, "ef": 1.00}}
         comb_sel_nome = st.selectbox("Tipo de combustível", list(combustiveis.keys()))
         comb_sel_obj = combustiveis[comb_sel_nome]
@@ -307,8 +345,8 @@ with abas[0]:
 
     st.markdown("---")
 
-    # Botão de Calcular e Lógica de Armazenamento
     if st.button("Calcular", key="btn_quente"):
+        st.session_state.calculo_realizado = False
         if not (isolante_selecionado['T_min'] <= Tq <= isolante_selecionado['T_max']):
             st.error(f"Material inadequado! A temperatura de operação ({Tq}°C) está fora dos limites para '{material_selecionado_nome}' (Mín: {isolante_selecionado['T_min']}°C, Máx: {isolante_selecionado['T_max']}°C).")
         elif Tq <= To:
@@ -319,72 +357,63 @@ with abas[0]:
                     Tq, To, L_total / 1000, k_func_str, geometry, emissividade_selecionada, pipe_diameter_mm / 1000
                 )
                 if convergiu:
-                    st.session_state.calculo_realizado = True # Flag para mostrar o botão de PDF
+                    st.session_state.calculo_realizado = True
                     perda_com_kw = q_com_isolante / 1000
                     h_sem = calcular_h_conv(Tq, To, geometry, (pipe_diameter_mm / 1000) if geometry == "Tubulação" else None)
                     q_rad_sem = emissividade_selecionada * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
                     q_conv_sem = h_sem * (Tq - To)
                     perda_sem_kw = (q_rad_sem + q_conv_sem) / 1000
-                    
-                    dados_para_relatorio = {
-                        "material": material_selecionado_nome, "acabamento": acabamento_selecionado_nome,
-                        "geometria": geometry, "diametro_tubo": pipe_diameter_mm, "num_camadas": numero_camadas,
-                        "esp_total": L_total, "tq": Tq, "to": To, "emissividade": emissividade_selecionada,
-                        "tf": Tf, "perda_com_kw": perda_com_kw, "perda_sem_kw": perda_sem_kw,
-                        "calculo_financeiro": calcular_financeiro
-                    }
-
+                    dados_para_relatorio = {"material": material_selecionado_nome, "acabamento": acabamento_selecionado_nome, "geometria": geometry, "diametro_tubo": pipe_diameter_mm, "num_camadas": numero_camadas, "esp_total": L_total, "tq": Tq, "to": To, "emissividade": emissividade_selecionada, "tf": Tf, "perda_com_kw": perda_com_kw, "perda_sem_kw": perda_sem_kw, "calculo_financeiro": calcular_financeiro}
                     if calcular_financeiro:
                         economia_kw_m2 = perda_sem_kw - perda_com_kw
                         custo_kwh = valor_comb / (comb_sel_obj['pc'] * comb_sel_obj['ef'])
                         eco_mensal = economia_kw_m2 * custo_kwh * m2 * h_dia * d_sem * 4.33
                         eco_anual = eco_mensal * 12
                         reducao_pct = ((economia_kw_m2 / perda_sem_kw) * 100) if perda_sem_kw > 0 else 0
-                        dados_para_relatorio.update({
-                            "eco_mensal": eco_mensal, "eco_anual": eco_anual, "reducao_pct": reducao_pct
-                        })
-
+                        dados_para_relatorio.update({"eco_mensal": eco_mensal, "eco_anual": eco_anual, "reducao_pct": reducao_pct})
                     st.session_state.dados_ultima_simulacao = dados_para_relatorio
                 else:
                     st.session_state.calculo_realizado = False
                     st.error("❌ O cálculo não convergiu. Verifique os dados de entrada.")
-    
-    # --- Exibição dos Resultados e Botão de PDF ---
+
     if st.session_state.get('calculo_realizado', False):
         dados = st.session_state.dados_ultima_simulacao
         st.subheader("Resultados")
         st.success(f"🌡️ Temperatura da face fria: {dados['tf']:.1f} °C".replace('.', ','))
-        
-        # Lógica de múltiplas camadas
         if dados['num_camadas'] > 1:
-            # (O código para múltiplas camadas iria aqui)
-            pass
-
+            T_atual = dados['tq']
+            k_medio = calcular_k(k_func_str, (dados['tq'] + dados['tf']) / 2)
+            if k_medio and q_com_isolante:
+                for i in range(dados['num_camadas'] - 1):
+                    if dados['geometria'] == "Superfície Plana":
+                        resistencia_camada = (espessuras[i] / 1000) / k_medio
+                        delta_T_camada = q_com_isolante * resistencia_camada
+                    elif dados['geometria'] == "Tubulação":
+                        r_camada_i = (dados['diametro_tubo'] / 2000) + sum(espessuras[:i]) / 1000
+                        r_camada_o = r_camada_i + espessuras[i] / 1000
+                        q_linha = q_com_isolante * (2 * math.pi * ((dados['diametro_tubo']/2000) + L_total/1000))
+                        resistencia_termica_linha = math.log(r_camada_o / r_camada_i) / (2 * math.pi * k_medio)
+                        delta_T_camada = q_linha * resistencia_termica_linha
+                    T_interface = T_atual - delta_T_camada
+                    st.success(f"↪️ Temp. entre camada {i+1} e {i+2}: {T_interface:.1f} °C".replace('.', ','))
+                    T_atual = T_interface
         st.info(f"⚡ Perda de calor com isolante: {dados['perda_com_kw']:.3f} kW/m²".replace('.', ','))
         st.warning(f"⚡ Perda de calor sem isolante: {dados['perda_sem_kw']:.3f} kW/m²".replace('.', ','))
-        
-        if dados['calculo_financeiro']:
+        if dados.get('calculo_financeiro', False):
             st.subheader("Retorno Financeiro")
             m1, m2, m3 = st.columns(3)
             m1.metric("Economia Mensal", f"R$ {dados['eco_mensal']:,.2f}".replace(',','X').replace('.',',').replace('X','.'))
             m2.metric("Economia Anual", f"R$ {dados['eco_anual']:,.2f}".replace(',','X').replace('.',',').replace('X','.'))
             m3.metric("Redução de Perda", f"{dados['reducao_pct']:.1f} %")
-        
-        # --- BOTÃO DE DOWNLOAD DO PDF ---
         st.markdown("---")
         pdf_bytes = gerar_pdf(dados)
-        st.download_button(
-            label="Download Relatório PDF",
-            data=pdf_bytes,
-            file_name=f"Relatorio_IsolaFacil_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf"
-        )
-
+        st.download_button(label="Download Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_IsolaFacil_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf")
 
     st.markdown("---")
-    st.markdown(f"""
+    st.markdown("""
     > **Nota:** Os cálculos são realizados de acordo com as práticas recomendadas pelas normas **ASTM C680** e **ISO 12241**, em conformidade com os procedimentos da norma brasileira **ABNT NBR 16281**.
     """)
+
 with abas[1]:
     st.subheader("Cálculo de Espessura Mínima para Minimizar Condensação")
     
@@ -406,10 +435,7 @@ with abas[1]:
     Ta_frio = col2.number_input("Temperatura ambiente [°C]", value=25.0, key="Ta_frio")
     UR = col3.number_input("Umidade relativa do ar [%]", 0.0, 100.0, 70.0)
 
-    wind_speed = st.number_input(
-        "Velocidade do vento (m/s)",
-        min_value=0.0, value=0.0, step=0.5, format="%.1f", key="wind_speed_frio"
-    )
+    wind_speed = st.number_input("Velocidade do vento (m/s)", min_value=0.0, value=0.0, step=0.5, format="%.1f", key="wind_speed_frio")
     if wind_speed == 0:
         st.info("💡 Com velocidade do vento igual a 0 m/s, o cálculo considera convecção natural.")
 
@@ -429,22 +455,16 @@ with abas[1]:
                 for L_teste in [i * 0.001 for i in range(1, 501)]:
                     Tf, _, convergiu = encontrar_temperatura_face_fria(
                         Ti_frio, Ta_frio, L_teste, k_func_str_frio, 
-                        geometry_frio, 
-                        0.9,
-                        pipe_diameter_mm_frio / 1000, 
-                        wind_speed_ms=wind_speed
+                        geometry_frio, 0.9, pipe_diameter_mm_frio / 1000, wind_speed_ms=wind_speed
                     )
                     if convergiu and Tf >= T_orvalho:
                         espessura_final = L_teste
                         break
 
                 if espessura_final:
-                    st.success(f"✅ Espessura mínima para evitar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
+                    st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-
-
-
 
 
 
