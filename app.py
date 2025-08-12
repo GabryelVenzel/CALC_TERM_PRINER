@@ -10,7 +10,7 @@ from fpdf import FPDF
 from datetime import datetime
 from io import BytesIO
 
-# --- CONFIGURAÇÕES GERAIS E ESTILO ---
+# --- CONFIGURAções GERAIS E ESTILO ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
 
 st.markdown("""
@@ -190,16 +190,25 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     
+    # --- FUNÇÃO add_linha CORRIGIDA ---
     def add_linha(chave, valor):
-        page_width = pdf.w - pdf.l_margin - pdf.r_margin
-        key_width = 70
+        y_antes = pdf.get_y()
+        # Define a fonte e escreve a chave (label)
         pdf.set_font("Arial", "B", 11)
-        chave_sanitizada = str(chave).encode('latin-1', 'replace').decode('latin-1')
-        pdf.cell(key_width, 8, f" {chave_sanitizada}:", border=0, ln=0, align='L')
+        pdf.multi_cell(70, 8, f" {chave}:", border=0, align='L')
+        y_depois_chave = pdf.get_y()
+        
+        # Reposiciona o cursor na mesma linha, ao lado da chave
+        pdf.set_xy(pdf.l_margin + 70, y_antes)
+        
+        # Define a fonte e escreve o valor
         pdf.set_font("Arial", "", 11)
         valor_sanitizado = str(valor).encode('latin-1', 'replace').decode('latin-1')
-        value_width = page_width - key_width
-        pdf.multi_cell(value_width, 8, valor_sanitizado, border=0, align='L')
+        pdf.multi_cell(0, 8, valor_sanitizado, border=0, align='L')
+        y_depois_valor = pdf.get_y()
+        
+        # Garante que o cursor final esteja na posição mais baixa, caso haja quebra de linha
+        pdf.set_y(max(y_depois_chave, y_depois_valor))
 
     add_linha("Material do Isolante", dados.get("material", ""))
     add_linha("Acabamento Externo", dados.get("acabamento", ""))
@@ -468,4 +477,5 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
