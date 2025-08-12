@@ -172,12 +172,13 @@ def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, geometry, emiss
         
     return Tf, None, False
 
-# --- FUNÇÃO DE GERAÇÃO DE PDF ---
+# --- FUNÇÃO DE GERAÇÃO DE PDF (VERSÃO CORRIGIDA) ---
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     
+    # Sanitiza o título para evitar erros de codificação
     titulo = "Relatório de Cálculo Térmico - IsolaFácil".encode('latin-1', 'replace').decode('latin-1')
     pdf.cell(0, 10, titulo, 0, 1, "C")
     pdf.ln(10)
@@ -190,18 +191,27 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     
+    # --- FUNÇÃO add_linha CORRIGIDA PARA FORMATAR CORRETAMENTE ---
     def add_linha(chave, valor):
-        page_width = pdf.w - pdf.l_margin - pdf.r_margin
-        key_width = 70
+        y_antes = pdf.get_y()
+        # Define a fonte e escreve a chave (label) em uma célula que permite quebra de linha
         pdf.set_font("Arial", "B", 11)
-        chave_sanitizada = str(chave).encode('latin-1', 'replace').decode('latin-1')
-        pdf.cell(key_width, 8, f" {chave_sanitizada}:", border=0, ln=0, align='L')
+        pdf.multi_cell(70, 8, f" {chave}:", border=0, align='L')
+        y_depois_chave = pdf.get_y()
+        
+        # Reposiciona o cursor na mesma linha do início, mas ao lado da chave
+        pdf.set_xy(pdf.l_margin + 70, y_antes)
+        
+        # Define a fonte e escreve o valor
         pdf.set_font("Arial", "", 11)
-        # --- CORREÇÃO APLICADA AQUI ---
-        texto_inicial = str(valor).replace('ε', 'e')
-        valor_sanitizado = texto_inicial.encode('latin-1', 'replace').decode('latin-1')
-        value_width = page_width - key_width
-        pdf.multi_cell(value_width, 8, valor_sanitizado, border=0, align='L')
+        # Substitui o símbolo problemático e sanitiza o resto
+        texto_valor = str(valor).replace('ε', 'e')
+        valor_sanitizado = texto_valor.encode('latin-1', 'replace').decode('latin-1')
+        pdf.multi_cell(0, 8, valor_sanitizado, border=0, align='L')
+        y_depois_valor = pdf.get_y()
+        
+        # Garante que o cursor final esteja na posição mais baixa, caso haja quebra de linha em qualquer um dos lados
+        pdf.set_y(max(y_depois_chave, y_depois_valor))
 
     add_linha("Material do Isolante", dados.get("material", ""))
     add_linha("Acabamento Externo", dados.get("acabamento", ""))
@@ -213,7 +223,7 @@ def gerar_pdf(dados):
     add_linha("Temp. da Face Quente", f"{dados.get('tq', 0)} °C")
     add_linha("Temp. Ambiente", f"{dados.get('to', 0)} °C")
     add_linha("Emissividade (e)", str(dados.get("emissividade", "")))
-    pdf.ln(10)
+    pdf.ln(5)
 
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "2. Resultados do Cálculo Térmico", 0, 1, "L")
@@ -221,7 +231,7 @@ def gerar_pdf(dados):
     add_linha("Temperatura da Face Fria", f"{dados.get('tf', 0):.1f} °C")
     add_linha("Perda de Calor com Isolante", f"{dados.get('perda_com_kw', 0):.3f} kW/m²")
     add_linha("Perda de Calor sem Isolante", f"{dados.get('perda_sem_kw', 0):.3f} kW/m²")
-    pdf.ln(10)
+    pdf.ln(5)
 
     if dados.get("calculo_financeiro", False):
         pdf.set_font("Arial", "B", 12)
@@ -407,5 +417,6 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
