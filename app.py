@@ -176,7 +176,7 @@ try:
 except FileNotFoundError:
     st.warning("Arquivo 'logo.png' não encontrado.")
 
-st.title("Calculadora IsolaFácil")
+st.title("Calculadora Térmica Priner")
 
 df_isolantes = carregar_isolantes()
 df_acabamentos = carregar_acabamentos()
@@ -404,6 +404,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para evitar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
 
