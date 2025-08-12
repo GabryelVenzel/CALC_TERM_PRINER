@@ -210,7 +210,7 @@ def gerar_pdf(dados):
     add_linha("Espessura Total", f"{dados.get('esp_total', 0)} mm")
     add_linha("Temp. da Face Quente", f"{dados.get('tq', 0)} °C")
     add_linha("Temp. Ambiente", f"{dados.get('to', 0)} °C")
-    add_linha("Emissividade (ε)", str(dados.get("emissividade", "")))
+    add_linha("Emissividade (e)", str(dados.get("emissividade", "")))
     pdf.ln(10)
 
     pdf.set_font("Arial", "B", 12)
@@ -471,6 +471,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
 
