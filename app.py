@@ -479,3 +479,4 @@ with abas[1]:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
 
 
+
