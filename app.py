@@ -227,7 +227,7 @@ def add_linha(chave, valor):
         add_linha("Economia Anual", f"R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         add_linha("Redução de Perda", f"{dados.get('reducao_pct', 0):.1f} %")
 
-    return pdf.output(dest='S').encode('latin-1')
+    return pdf.output()
 
 # --- INICIALIZAÇÃO E INTERFACE PRINCIPAL ---
 try:
@@ -470,6 +470,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
 
