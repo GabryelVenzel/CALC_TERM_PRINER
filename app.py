@@ -194,7 +194,7 @@ def gerar_pdf(dados):
         pdf.cell(70, 8, f" {chave}:", 0, 0, "L")
         pdf.set_font("Arial", "", 11)
         valor_sanitizado = str(valor).encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 8, f" {valor_sanitizado}", 0, 1, "L")
+        pdf.multi_cell(0, 8, f" {valor_sanitizado}", border=0, align='L')
 
     add_linha("Material do Isolante", dados.get("material", ""))
     add_linha("Acabamento Externo", dados.get("acabamento", ""))
@@ -466,6 +466,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
 
