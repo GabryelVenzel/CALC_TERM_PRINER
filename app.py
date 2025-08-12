@@ -188,17 +188,12 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     
-    # Versão corrigida da função add_linha dentro de gerar_pdf
-def add_linha(chave, valor):
-    pdf.set_font("Arial", "B", 11)
-    # Escreve a chave e deixa o cursor na mesma linha
-    pdf.cell(70, 8, f" {chave}:", border=0, ln=0, align='L')
-    
-    pdf.set_font("Arial", "", 11)
-    # Sanitiza o valor para evitar erros de codificação
-    valor_sanitizado = str(valor).encode('latin-1', 'replace').decode('latin-1')
-    # Usa multi_cell para escrever o valor, que quebra a linha automaticamente
-    pdf.multi_cell(0, 8, valor_sanitizado, border=0, align='L')
+    def add_linha(chave, valor):
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(70, 8, f" {chave}:", border=0, ln=0, align='L')
+        pdf.set_font("Arial", "", 11)
+        valor_sanitizado = str(valor).encode('latin-1', 'replace').decode('latin-1')
+        pdf.multi_cell(0, 8, valor_sanitizado, border=0, align='L')
 
     add_linha("Material do Isolante", dados.get("material", ""))
     add_linha("Acabamento Externo", dados.get("acabamento", ""))
@@ -227,6 +222,7 @@ def add_linha(chave, valor):
         add_linha("Economia Anual", f"R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         add_linha("Redução de Perda", f"{dados.get('reducao_pct', 0):.1f} %")
 
+    # --- CORREÇÃO APLICADA AQUI ---
     return pdf.output()
 
 # --- INICIALIZAÇÃO E INTERFACE PRINCIPAL ---
@@ -470,7 +466,6 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-
 
 
 
