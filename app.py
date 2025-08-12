@@ -172,45 +172,43 @@ def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, geometry, emiss
         
     return Tf, None, False
 
-# --- FUNÇÃO DE GERAÇÃO DE PDF (VERSÃO CORRIGIDA) ---
+# --- FUNÇÃO DE GERAÇÃO DE PDF ---
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
     
-    # Sanitiza o título para evitar erros de codificação
-    titulo = "Relatório de Cálculo Térmico - IsolaFácil".encode('latin-1', 'replace').decode('latin-1')
-    pdf.cell(0, 10, titulo, 0, 1, "C")
+    # Adiciona a fonte UTF-8 (o arquivo .ttf deve estar na mesma pasta)
+    try:
+        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+        pdf.set_font('DejaVu', '', 16)
+    except RuntimeError:
+        # Fallback para o caso de o arquivo da fonte não ser encontrado
+        st.warning("Arquivo de fonte 'DejaVuSans.ttf' não encontrado. O PDF pode ter problemas com caracteres especiais.")
+        pdf.set_font("Arial", "B", 16)
+    
+    pdf.cell(0, 10, "Relatório de Cálculo Térmico - IsolaFácil", 0, 1, "C")
     pdf.ln(10)
     
-    pdf.set_font("Arial", "", 10)
+    pdf.set_font('DejaVu', '', 10)
     data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     pdf.cell(0, 5, f"Data da Simulação: {data_hora}", 0, 1, "R")
     pdf.ln(5)
 
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     
-    # --- FUNÇÃO add_linha CORRIGIDA PARA FORMATAR CORRETAMENTE ---
     def add_linha(chave, valor):
         y_antes = pdf.get_y()
-        # Define a fonte e escreve a chave (label) em uma célula que permite quebra de linha
-        pdf.set_font("Arial", "B", 11)
+        pdf.set_font('DejaVu', '', 11)
         pdf.multi_cell(70, 8, f" {chave}:", border=0, align='L')
         y_depois_chave = pdf.get_y()
         
-        # Reposiciona o cursor na mesma linha do início, mas ao lado da chave
         pdf.set_xy(pdf.l_margin + 70, y_antes)
         
-        # Define a fonte e escreve o valor
-        pdf.set_font("Arial", "", 11)
-        # Substitui o símbolo problemático e sanitiza o resto
-        texto_valor = str(valor).replace('ε', 'e')
-        valor_sanitizado = texto_valor.encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 8, valor_sanitizado, border=0, align='L')
+        pdf.set_font('DejaVu', '', 11)
+        pdf.multi_cell(0, 8, str(valor), border=0, align='L')
         y_depois_valor = pdf.get_y()
         
-        # Garante que o cursor final esteja na posição mais baixa, caso haja quebra de linha em qualquer um dos lados
         pdf.set_y(max(y_depois_chave, y_depois_valor))
 
     add_linha("Material do Isolante", dados.get("material", ""))
@@ -222,10 +220,10 @@ def gerar_pdf(dados):
     add_linha("Espessura Total", f"{dados.get('esp_total', 0)} mm")
     add_linha("Temp. da Face Quente", f"{dados.get('tq', 0)} °C")
     add_linha("Temp. Ambiente", f"{dados.get('to', 0)} °C")
-    add_linha("Emissividade (e)", str(dados.get("emissividade", "")))
+    add_linha("Emissividade (ε)", str(dados.get("emissividade", "")))
     pdf.ln(5)
 
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 10, "2. Resultados do Cálculo Térmico", 0, 1, "L")
     
     add_linha("Temperatura da Face Fria", f"{dados.get('tf', 0):.1f} °C")
@@ -234,7 +232,7 @@ def gerar_pdf(dados):
     pdf.ln(5)
 
     if dados.get("calculo_financeiro", False):
-        pdf.set_font("Arial", "B", 12)
+        pdf.set_font('DejaVu', '', 12)
         pdf.cell(0, 10, "3. Análise Financeira", 0, 1, "L")
         add_linha("Economia Mensal", f"R$ {dados.get('eco_mensal', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         add_linha("Economia Anual", f"R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
@@ -417,6 +415,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
 
