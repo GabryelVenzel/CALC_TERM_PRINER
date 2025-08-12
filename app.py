@@ -1,18 +1,3 @@
-Olá\! Este é um erro comum em Python chamado `IndentationError`. Ele acontece quando a indentação (o recuo com espaços no início de uma linha) está incorreta. Python é muito rigoroso com isso, pois a indentação define a estrutura do código.
-
-O erro está na definição da função `add_linha` (linha 191 no seu arquivo), que fica dentro da função `gerar_pdf`. Provavelmente, ao copiar e colar o código, a indentação dessa linha foi perdida ou alterada.
-
-**A Correção:**
-
-Eu revisei o código completo e ajustei a indentação para garantir que esteja correta. A função `add_linha` precisa estar corretamente alinhada dentro da função `gerar_pdf`.
-
-Para resolver de vez, a maneira mais segura é substituir todo o conteúdo do seu arquivo pelo código completo abaixo.
-
------
-
-### **Código Completo com a Indentação Corrigida**
-
-```python
 import streamlit as st
 import math
 import time
@@ -486,9 +471,6 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-```
-
-
 
 
 
