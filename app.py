@@ -8,6 +8,7 @@ import pandas as pd
 import json
 from fpdf import FPDF
 from datetime import datetime
+from io import BytesIO
 
 # --- CONFIGURAÇÕES GERAIS E ESTILO ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -227,7 +228,10 @@ def gerar_pdf(dados):
         add_linha("Economia Anual", f"R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         add_linha("Redução de Perda", f"{dados.get('reducao_pct', 0):.1f} %")
 
-    return pdf.output()
+    # --- CORREÇÃO DEFINITIVA APLICADA AQUI ---
+    buffer = BytesIO()
+    pdf.output(buffer)
+    return buffer.getvalue()
 
 # --- INICIALIZAÇÃO E INTERFACE PRINCIPAL ---
 try:
@@ -235,9 +239,6 @@ try:
     st.image(logo, width=300)
 except FileNotFoundError:
     st.warning("Arquivo 'logo.png' não encontrado.")
-
-# --- LINHA DE TESTE PARA VERIFICAR ATUALIZAÇÃO ---
-st.warning("VERSÃO DO CÓDIGO: 12/AGO - CORREÇÃO FINAL PDF")
 
 st.title("Calculadora IsolaFácil")
 
@@ -405,7 +406,5 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-
-
 
 
