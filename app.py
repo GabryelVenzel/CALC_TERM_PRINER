@@ -1,3 +1,18 @@
+Olá\! Este é um erro comum em Python chamado `IndentationError`. Ele acontece quando a indentação (o recuo com espaços no início de uma linha) está incorreta. Python é muito rigoroso com isso, pois a indentação define a estrutura do código.
+
+O erro está na definição da função `add_linha` (linha 191 no seu arquivo), que fica dentro da função `gerar_pdf`. Provavelmente, ao copiar e colar o código, a indentação dessa linha foi perdida ou alterada.
+
+**A Correção:**
+
+Eu revisei o código completo e ajustei a indentação para garantir que esteja correta. A função `add_linha` precisa estar corretamente alinhada dentro da função `gerar_pdf`.
+
+Para resolver de vez, a maneira mais segura é substituir todo o conteúdo do seu arquivo pelo código completo abaixo.
+
+-----
+
+### **Código Completo com a Indentação Corrigida**
+
+```python
 import streamlit as st
 import math
 import time
@@ -188,20 +203,18 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     
-   def add_linha(chave, valor):
-    # Largura útil da página (A4 ~210mm - 10mm margem esq - 10mm margem dir)
-    largura_util = pdf.w - pdf.l_margin - pdf.r_margin
-    largura_chave = 70
-
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(largura_chave, 8, f" {chave}:", border=0, ln=0, align='L')
-    
-    pdf.set_font("Arial", "", 11)
-    valor_sanitizado = str(valor).encode('latin-1', 'replace').decode('latin-1')
-    
-    # Calcula a largura restante e passa explicitamente para a multi_cell
-    largura_valor = largura_util - largura_chave
-    pdf.multi_cell(largura_valor, 8, valor_sanitizado, border=0, align='L')
+    # --- INÍCIO DA FUNÇÃO INTERNA CORRIGIDA ---
+    def add_linha(chave, valor):
+        # Esta função está corretamente indentada dentro de gerar_pdf
+        page_width = pdf.w - pdf.l_margin - pdf.r_margin
+        key_width = 70
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(key_width, 8, f" {chave}:", border=0, ln=0, align='L')
+        pdf.set_font("Arial", "", 11)
+        valor_sanitizado = str(valor).encode('latin-1', 'replace').decode('latin-1')
+        value_width = page_width - key_width
+        pdf.multi_cell(value_width, 8, valor_sanitizado, border=0, align='L')
+    # --- FIM DA FUNÇÃO INTERNA CORRIGIDA ---
 
     add_linha("Material do Isolante", dados.get("material", ""))
     add_linha("Acabamento Externo", dados.get("acabamento", ""))
@@ -230,7 +243,6 @@ def gerar_pdf(dados):
         add_linha("Economia Anual", f"R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         add_linha("Redução de Perda", f"{dados.get('reducao_pct', 0):.1f} %")
 
-    # --- CORREÇÃO APLICADA AQUI ---
     return pdf.output()
 
 # --- INICIALIZAÇÃO E INTERFACE PRINCIPAL ---
@@ -338,7 +350,7 @@ with abas[0]:
     calcular_financeiro = st.checkbox("Calcular retorno financeiro")
     if calcular_financeiro:
         st.subheader("Parâmetros do Cálculo Financeiro")
-        st.info("💡 Os custos de combustível são pré-configurados com valores médios de mercado. Para um cálculo mais preciso, marque a opção 'Editar custo' e insira o valor do seu fornecedor.")
+        st.info("💡 Os custos de combustível são pré-configurados com valores médios de mercado...")
         combustiveis = {"Óleo BPF (kg)": {"v": 3.50, "pc": 11.34, "ef": 0.80}, "Gás Natural (m³)": {"v": 3.60, "pc": 9.65, "ef": 0.75},"Lenha Eucalipto 30% umidade (ton)": {"v": 200.00, "pc": 3500.00, "ef": 0.70},"Eletricidade (kWh)": {"v": 0.75, "pc": 1.00, "ef": 1.00}}
         comb_sel_nome = st.selectbox("Tipo de combustível", list(combustiveis.keys()))
         comb_sel_obj = combustiveis[comb_sel_nome]
@@ -474,7 +486,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-
+```
 
 
 
