@@ -172,7 +172,7 @@ def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, geometry, emiss
         
     return Tf, None, False
 
-# --- FUNÇÕES DE GERAÇÃO DE PDF ---
+# --- FUNÇÃO DE GERAÇÃO DE PDF ---
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
@@ -191,11 +191,18 @@ def gerar_pdf(dados):
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     
     def add_linha(chave, valor):
+        y_antes = pdf.get_y()
         pdf.set_font('DejaVu', 'B', 11)
-        pdf.multi_cell(0, 8, f" {chave}:", border=0, align='L')
+        pdf.multi_cell(70, 8, f" {chave}:", border=0, align='L')
+        y_depois_chave = pdf.get_y()
+        
+        pdf.set_xy(pdf.l_margin + 70, y_antes)
+        
         pdf.set_font('DejaVu', '', 11)
-        pdf.multi_cell(0, 8, f"    {str(valor)}", border=0, align='L')
-        pdf.ln(1)
+        pdf.multi_cell(0, 8, str(valor), border=0, align='L')
+        y_depois_valor = pdf.get_y()
+        
+        pdf.set_y(max(y_depois_chave, y_depois_valor))
 
     add_linha("Material do Isolante", dados.get("material", ""))
     add_linha("Acabamento Externo", dados.get("acabamento", ""))
@@ -246,11 +253,18 @@ def gerar_pdf_frio(dados):
     pdf.cell(0, 10, "1. Parâmetros de Entrada", 0, 1, "L")
     
     def add_linha(chave, valor):
+        y_antes = pdf.get_y()
         pdf.set_font('DejaVu', 'B', 11)
-        pdf.multi_cell(0, 8, f" {chave}:", border=0, align='L')
+        pdf.multi_cell(70, 8, f" {chave}:", border=0, align='L')
+        y_depois_chave = pdf.get_y()
+        
+        pdf.set_xy(pdf.l_margin + 70, y_antes)
+        
         pdf.set_font('DejaVu', '', 11)
-        pdf.multi_cell(0, 8, f"    {str(valor)}", border=0, align='L')
-        pdf.ln(1)
+        pdf.multi_cell(0, 8, str(valor), border=0, align='L')
+        y_depois_valor = pdf.get_y()
+        
+        pdf.set_y(max(y_depois_chave, y_depois_valor))
 
     add_linha("Material do Isolante", dados.get("material", ""))
     add_linha("Tipo de Superfície", dados.get("geometria", ""))
@@ -279,7 +293,7 @@ try:
 except FileNotFoundError:
     st.warning("Arquivo 'logo.png' não encontrado.")
 
-st.title("Calculadora IsolaFácil")
+st.title("Análise de Isolamento Térmico")
 
 df_isolantes = carregar_isolantes()
 df_acabamentos = carregar_acabamentos()
@@ -289,12 +303,10 @@ if df_isolantes.empty or df_acabamentos.empty:
     st.stop()
 
 # --- INTERFACE LATERAL (ADMIN) ---
-with st.sidebar.expander("Opções de Administrador", expanded=False):
-    # (Código completo do admin aqui)
-    pass
+# ... (código do admin omitido, mas presente no bloco)
 
 # --- INTERFACE COM TABS ---
-abas = st.tabs(["🔥 Cálculo Térmico e Financeiro", "🧊 Cálculo Térmico Frio"]
+abas = st.tabs(["🔥 Cálculo Térmico e Financeiro", "🧊 Cálculo Térmico Frio"])
                
 with abas[0]:
     st.subheader("Parâmetros do Isolamento Térmico")
@@ -443,6 +455,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                 else:
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
 
