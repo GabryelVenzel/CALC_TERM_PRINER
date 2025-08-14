@@ -224,13 +224,14 @@ def gerar_pdf(dados):
 
     if dados.get("calculo_financeiro", False):
         pdf.set_font(font_family, 'B', 12)
-        pdf.cell(0, 8, "3. Análise Financeira", ln=1)
+        pdf.cell(0, 8, "3. Análise Financeira e Ambiental", ln=1)
         pdf.set_font(font_family, '', 11)
      
         texto_financeiro = (
             f"Economia Mensal: R$ {dados.get('eco_mensal', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') + "\n"
             f"Economia Anual: R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') + "\n"
             f"Redução de Perda: {dados.get('reducao_pct', 0):.1f} %\n"
+            f"Carbono Evitado: {dados.get('co2_ton_ano', 0):.2f} tCO2e/ano\n"
         )
         pdf.multi_cell(0, 6, texto_financeiro.strip())
 
@@ -351,18 +352,27 @@ with abas[0]:
 
     st.markdown("---")
     
-    calcular_financeiro = st.checkbox("Calcular retorno financeiro")
+    calcular_financeiro = st.checkbox("Calcular retorno financeiro e ambiental")
     if calcular_financeiro:
-        st.subheader("Parâmetros do Cálculo Financeiro")
-        st.info("💡 Os custos de combustível são pré-configurados com valores médios de mercado...")
-        combustiveis = {"Óleo BPF (kg)": {"v": 3.50, "pc": 11.34, "ef": 0.80}, "Gás Natural (m³)": {"v": 3.60, "pc": 9.65, "ef": 0.75},"Lenha Eucalipto 30% umidade (ton)": {"v": 200.00, "pc": 3500.00, "ef": 0.70},"Eletricidade (kWh)": {"v": 0.75, "pc": 1.00, "ef": 1.00}}
+        st.subheader("Parâmetros do Cálculo Financeiro e Ambiental")
+        st.info("💡 Os custos e fatores de emissão são pré-configurados com valores médios de mercado.")
+        
+        combustiveis = {
+            "Óleo BPF (kg)":                   {"v": 3.50, "pc": 11.34, "ef": 0.80, "fator_emissao": 3.15},
+            "Gás Natural (m³)":                {"v": 3.60, "pc": 9.65,  "ef": 0.75, "fator_emissao": 2.0},
+            "Lenha Eucalipto 30% umidade (ton)": {"v": 200.00,"pc": 3500.00,"ef": 0.70, "fator_emissao": 1260},
+            "Eletricidade (kWh)":                {"v": 0.75, "pc": 1.00,  "ef": 1.00, "fator_emissao": 0.0358}
+        }
+        
         comb_sel_nome = st.selectbox("Tipo de combustível", list(combustiveis.keys()))
         comb_sel_obj = combustiveis[comb_sel_nome]
+        
         editar_valor = st.checkbox("Editar custo do combustível/energia")
         if editar_valor:
             valor_comb = st.number_input("Custo combustível (R$)", min_value=0.10, value=comb_sel_obj['v'], step=0.01, format="%.2f")
         else:
             valor_comb = comb_sel_obj['v']
+            
         col_fin1, col_fin2, col_fin3 = st.columns(3)
         m2 = col_fin1.number_input("Área do projeto (m²)", 1.0, value=10.0)
         h_dia = col_fin2.number_input("Horas de operação/dia", 1.0, 24.0, 8.0)
@@ -386,14 +396,34 @@ with abas[0]:
                     q_rad_sem = emissividade_selecionada * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
                     q_conv_sem = h_sem * (Tq - To)
                     perda_sem_kw = (q_rad_sem + q_conv_sem) / 1000
-                    dados_para_relatorio = {"material": material_selecionado_nome, "acabamento": acabamento_selecionado_nome, "geometria": geometry, "diametro_tubo": pipe_diameter_mm, "num_camadas": numero_camadas, "esp_total": L_total, "tq": Tq, "to": To, "emissividade": emissividade_selecionada, "tf": Tf, "perda_com_kw": perda_com_kw, "perda_sem_kw": perda_sem_kw, "calculo_financeiro": calcular_financeiro}
+                    
+                    dados_para_relatorio = {
+                        "material": material_selecionado_nome, "acabamento": acabamento_selecionado_nome, 
+                        "geometria": geometry, "diametro_tubo": pipe_diameter_mm, "num_camadas": numero_camadas, 
+                        "esp_total": L_total, "tq": Tq, "to": To, "emissividade": emissividade_selecionada, 
+                        "tf": Tf, "perda_com_kw": perda_com_kw, "perda_sem_kw": perda_sem_kw, 
+                        "calculo_financeiro": calcular_financeiro
+                    }
+
                     if calcular_financeiro:
                         economia_kw_m2 = perda_sem_kw - perda_com_kw
                         custo_kwh = valor_comb / (comb_sel_obj['pc'] * comb_sel_obj['ef'])
                         eco_mensal = economia_kw_m2 * custo_kwh * m2 * h_dia * d_sem * 4.33
                         eco_anual = eco_mensal * 12
                         reducao_pct = ((economia_kw_m2 / perda_sem_kw) * 100) if perda_sem_kw > 0 else 0
-                        dados_para_relatorio.update({"eco_mensal": eco_mensal, "eco_anual": eco_anual, "reducao_pct": reducao_pct})
+                        
+                        # Cálculo de Carbono
+                        energia_efetiva_anual_kwh = economia_kw_m2 * m2 * h_dia * d_sem * 4.33 * 12
+                        energia_bruta_anual_kwh = energia_efetiva_anual_kwh / comb_sel_obj['ef']
+                        quantidade_comb_poupado = energia_bruta_anual_kwh / comb_sel_obj['pc']
+                        co2_evitado_anual_kg = quantidade_comb_poupado * comb_sel_obj['fator_emissao']
+                        co2_evitado_anual_ton = co2_evitado_anual_kg / 1000
+                        
+                        dados_para_relatorio.update({
+                            "eco_mensal": eco_mensal, "eco_anual": eco_anual, 
+                            "reducao_pct": reducao_pct, "co2_ton_ano": co2_evitado_anual_ton
+                        })
+
                     st.session_state.dados_ultima_simulacao = dados_para_relatorio
                 else:
                     st.session_state.calculo_realizado = False
@@ -403,9 +433,11 @@ with abas[0]:
         dados = st.session_state.dados_ultima_simulacao
         st.subheader("Resultados")
         st.success(f"🌡️ Temperatura da face fria: {dados['tf']:.1f} °C".replace('.', ','))
+        
         if dados['num_camadas'] > 1:
             T_atual = dados['tq']
             k_medio = calcular_k(k_func_str, (dados['tq'] + dados['tf']) / 2)
+            q_com_isolante = dados['perda_com_kw'] * 1000
             if k_medio and q_com_isolante is not None:
                 for i in range(dados['num_camadas'] - 1):
                     if dados['geometria'] == "Superfície Plana":
@@ -420,14 +452,26 @@ with abas[0]:
                     T_interface = T_atual - delta_T_camada
                     st.success(f"↪️ Temp. entre camada {i+1} e {i+2}: {T_interface:.1f} °C".replace('.', ','))
                     T_atual = T_interface
+                    
         st.info(f"⚡ Perda de calor com isolante: {dados['perda_com_kw']:.3f} kW/m²".replace('.', ','))
         st.warning(f"⚡ Perda de calor sem isolante: {dados['perda_sem_kw']:.3f} kW/m²".replace('.', ','))
+        
         if dados.get('calculo_financeiro', False):
-            st.subheader("Retorno Financeiro")
+            st.subheader("Retorno Financeiro e Ambiental")
             m1, m2, m3 = st.columns(3)
-            m1.metric("Economia Mensal", f"R$ {dados['eco_mensal']:,.2f}".replace(',','X').replace('.',',').replace('X','.'))
-            m2.metric("Economia Anual", f"R$ {dados['eco_anual']:,.2f}".replace(',','X').replace('.',',').replace('X','.'))
+            
+            eco_anual_str = f"R$ {dados['eco_anual']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            eco_mensal_str = f"R$ {dados['eco_mensal']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            
+            m1.metric(
+                label="Economia Anual",
+                value=eco_anual_str,
+                help=f"Economia mensal estimada: {eco_mensal_str}"
+            )
+            m2.metric("Carbono Evitado", f"{dados.get('co2_ton_ano', 0):.2f} tCO₂e/ano")
             m3.metric("Redução de Perda", f"{dados['reducao_pct']:.1f} %")
+            
+
         st.markdown("---")
         pdf_bytes = gerar_pdf(dados)
         st.download_button(label="Download Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_IsolaFacil_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", key="pdf_quente")
@@ -508,6 +552,10 @@ with abas[1]:
             mime="application/pdf",
             key="btn_pdf_frio"
         )
+
+
+
+
 
 
 
