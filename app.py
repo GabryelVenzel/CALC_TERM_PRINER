@@ -6,10 +6,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
-from fpdf import FPDF
-from datetime import datetime
-from io import BytesIO
-import os
 
 # --- CONFIGURAÇÕES GERAIS E ESTILO ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -57,17 +53,6 @@ def carregar_isolantes():
         st.error(f"Erro ao carregar materiais isolantes: {ex}")
         return pd.DataFrame()
 
-@st.cache_data(ttl=300)
-def carregar_acabamentos():
-    try:
-        worksheet = get_worksheet("Emissividade")
-        df = pd.DataFrame(worksheet.get_all_records())
-        df['emissividade'] = pd.to_numeric(df['emissividade'].astype(str).str.replace(',', '.'), errors='coerce').fillna(0.9)
-        return df
-    except Exception as ex:
-        st.error(f"Erro ao carregar acabamentos: {ex}")
-        return pd.DataFrame()
-
 # --- FUNÇÕES DE CÁLCULO ---
 def calcular_k(k_func_str, T_media):
     try:
@@ -77,7 +62,7 @@ def calcular_k(k_func_str, T_media):
         st.error(f"Erro na fórmula k(T) '{k_func_str}': {ex}")
         return None
 
-def calcular_h_conv(Tf, To, geometry, outer_diameter_m=None, wind_speed_ms=0):
+def calcular_h_conv(Tf, To, wind_speed_ms=0):
     Tf_K, To_K = Tf + 273.15, To + 273.15
     T_film_K = (Tf_K + To_K) / 2
     g, beta = 9.81, 1 / T_film_K
@@ -88,31 +73,23 @@ def calcular_h_conv(Tf, To, geometry, outer_diameter_m=None, wind_speed_ms=0):
     delta_T = abs(Tf - To)
     if delta_T == 0: return 0
     
+    # Lógica apenas para Superfície Plana
+    L_c = 1.0 
+    
     if wind_speed_ms >= 1.0:
-        L_c = 1.0 if geometry == "Superfície Plana" else outer_diameter_m
-        if L_c is None or L_c == 0: L_c = 1.0
         Re = (wind_speed_ms * L_c) / nu
         if Re < 5e5:
             Nu = 0.664 * (Re**0.5) * (Pr**(1/3))
         else:
             Nu = (0.037 * (Re**0.8) - 871) * (Pr**(1/3))
-    else:
-        if geometry == "Superfície Plana":
-            L_c = 0.1
-            Ra = (g * beta * delta_T * L_c**3) / (nu * alpha)
-            Nu = 0.27 * Ra**(1/4)
-        elif geometry == "Tubulação":
-            L_c = outer_diameter_m
-            Ra = (g * beta * delta_T * L_c**3) / (nu * alpha)
-            term1 = 0.60
-            term2 = (0.387 * Ra**(1/6)) / ((1 + (0.559 / Pr)**(9/16))**(8/27))
-            Nu = (term1 + term2)**2
-        else:
-            Nu = 0
+    else: # Convecção Natural
+        L_c = 0.1 # Characteristic length for natural convection on a flat plate
+        Ra = (g * beta * delta_T * L_c**3) / (nu * alpha)
+        Nu = 0.27 * Ra**(1/4)
     
     return (Nu * k_ar) / L_c
 
-def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, geometry, emissividade, pipe_diameter_m=None, wind_speed_ms=0):
+def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, emissividade, wind_speed_ms=0):
     Tf = To + 10.0
     max_iter, step, min_step, tolerancia = 1000, 50.0, 0.001, 0.5
     erro_anterior = None
@@ -122,18 +99,11 @@ def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, geometry, emiss
         k = calcular_k(k_func_str, T_media)
         if k is None or k <= 0: return None, None, False
 
-        if geometry == "Superfície Plana":
-            q_conducao = k * (Tq - Tf) / L_total
-            outer_surface_diameter = L_total
-        elif geometry == "Tubulação":
-            r_inner = pipe_diameter_m / 2
-            r_outer = r_inner + L_total
-            if r_inner <= 0 or r_outer <= r_inner: return None, None, False
-            q_conducao = (k * (Tq - Tf)) / (r_outer * math.log(r_outer / r_inner))
-            outer_surface_diameter = r_outer * 2
-
+        # Lógica de condução apenas para Superfície Plana
+        q_conducao = k * (Tq - Tf) / L_total
+        
         Tf_K, To_K = Tf + 273.15, To + 273.15
-        h_conv = calcular_h_conv(Tf, To, geometry, outer_surface_diameter, wind_speed_ms)
+        h_conv = calcular_h_conv(Tf, To, wind_speed_ms)
         q_rad = emissividade * sigma * (Tf_K**4 - To_K**4)
         q_conv = h_conv * (Tf - To)
         q_transferencia = q_conv + q_rad
@@ -148,151 +118,6 @@ def encontrar_temperatura_face_fria(Tq, To, L_total, k_func_str, geometry, emiss
         
     return Tf, None, False
 
-# --- FUNÇÕES DE GERAÇÃO DE PDF ---
-def preparar_pdf():
-    pdf = FPDF()
-    pdf.add_page()
-    
-    background_image_path = 'fundo_relatorio.png'
-    if os.path.exists(background_image_path):
-        pdf.image(background_image_path, x=0, y=0, w=210, h=297)
-    else:
-        st.warning(f"Aviso: Imagem de fundo '{background_image_path}' não encontrada. O PDF será gerado com fundo branco.")
-    
-    try:
-        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-        pdf.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
-        font_family = 'DejaVu'
-    except RuntimeError:
-        st.warning("Arquivos de fonte (DejaVu) não encontrados. PDF usará fonte padrão Arial.")
-        font_family = 'Arial'
-    return pdf, font_family
-
-def gerar_pdf(dados):
-    pdf, font_family = preparar_pdf()
-    
-    # Posiciona o cursor 8mm a partir do topo da página (mais acima que o padrão)
-    pdf.set_y(8)
-    # Define a cor do texto como branco
-    pdf.set_text_color(255, 255, 255)
-    
-    pdf.set_font(font_family, 'B', 16)
-    pdf.cell(0, 10, "Relatório de Cálculo Térmico", 0, 1, "C")
-    
-    # Restaura a cor do texto para preto para o restante do documento
-    pdf.set_text_color(0, 0, 0)
-    
-    pdf.ln(10)
-    
-    pdf.set_font(font_family, '', 10)
-    data_simulacao = datetime.now().strftime("%d/%m/%Y")
-    pdf.cell(0, 5, f"Data da Simulação: {data_simulacao}", 0, 1, "L")
-    pdf.ln(5)
-
-    pdf.set_font(font_family, 'B', 12)
-    pdf.cell(0, 8, "1. Parâmetros de Entrada", ln=1)
-    pdf.set_font(font_family, '', 11)
-    
-    texto_entradas = (
-        f"Material do Isolante: {dados.get('material', '')}\n"
-        f"Acabamento Externo: {dados.get('acabamento', '')}\n"
-        f"Tipo de Superfície: {dados.get('geometria', '')}\n"
-    )
-    if dados.get("geometria") == "Tubulação":
-        texto_entradas += f"Diâmetro da Tubulação: {dados.get('diametro_tubo', 0)} mm\n"
-    texto_entradas += (
-        f"Número de Camadas: {dados.get('num_camadas', '')}\n"
-        f"Espessura Total: {dados.get('esp_total', 0)} mm\n"
-        f"Temp. da Face Quente: {dados.get('tq', 0)} °C\n"
-        f"Temp. Ambiente: {dados.get('to', 0)} °C\n"
-        f"Emissividade (e): {dados.get('emissividade', '')}\n"
-    )
-    pdf.multi_cell(0, 6, texto_entradas.strip())
-    pdf.ln(5)
-
-    pdf.set_font(font_family, 'B', 12)
-    pdf.cell(0, 8, "2. Resultados do Cálculo Térmico", ln=1)
-    pdf.set_font(font_family, '', 11)
-
-    texto_resultados = (
-        f"Temperatura da Face Fria: {dados.get('tf', 0):.1f} °C\n"
-        f"Perda de Calor com Isolante: {dados.get('perda_com_kw', 0):.3f} kW/m²\n"
-        f"Perda de Calor sem Isolante: {dados.get('perda_sem_kw', 0):.3f} kW/m²\n"
-    )
-    pdf.multi_cell(0, 6, texto_resultados.strip())
-    pdf.ln(5)
-
-    if dados.get("calculo_financeiro", False):
-        pdf.set_font(font_family, 'B', 12)
-        pdf.cell(0, 8, "3. Análise Financeira e Ambiental", ln=1)
-        pdf.set_font(font_family, '', 11)
-     
-        texto_financeiro = (
-            f"Economia Mensal: R$ {dados.get('eco_mensal', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') + "\n"
-            f"Economia Anual: R$ {dados.get('eco_anual', 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') + "\n"
-            f"Redução de Perda: {dados.get('reducao_pct', 0):.1f} %\n"
-            f"Carbono Evitado: {dados.get('co2_ton_ano', 0):.2f} tCO2e/ano\n"
-        )
-        pdf.multi_cell(0, 6, texto_financeiro.strip())
-
-    buffer = BytesIO()
-    pdf.output(buffer)
-    return buffer.getvalue()
-
-def gerar_pdf_frio(dados):
-    pdf, font_family = preparar_pdf()
-
-    # Posiciona o cursor 8mm a partir do topo da página (mais acima que o padrão)
-    pdf.set_y(8)
-    # Define a cor do texto como branco
-    pdf.set_text_color(255, 255, 255)
-
-    pdf.set_font(font_family, 'B', 16)
-    pdf.cell(0, 10, "Relatório de Cálculo de Condensação", 0, 1, "C")
-    
-    # Restaura a cor do texto para preto para o restante do documento
-    pdf.set_text_color(0, 0, 0)
-
-    pdf.ln(10)
-    
-    pdf.set_font(font_family, '', 10)
-    data_simulacao = datetime.now().strftime("%d/%m/%Y")
-    pdf.cell(0, 5, f"Data da Simulação: {data_simulacao}", 0, 1, "L")
-    pdf.ln(5)
-
-    pdf.set_font(font_family, 'B', 12)
-    pdf.cell(0, 8, "1. Parâmetros de Entrada", ln=1)
-    pdf.set_font(font_family, '', 11)
-
-    texto_entradas = (
-        f"Material do Isolante: {dados.get('material', '')}\n"
-        f"Tipo de Superfície: {dados.get('geometria', '')}\n"
-    )
-    if dados.get("geometria") == "Tubulação":
-        texto_entradas += f"Diâmetro da Tubulação: {dados.get('diametro_tubo', 0)} mm\n"
-    texto_entradas += (
-        f"Temp. Interna: {dados.get('ti', 0)} °C\n"
-        f"Temp. Ambiente: {dados.get('ta', 0)} °C\n"
-        f"Umidade Relativa: {dados.get('ur', 0)} %\n"
-        f"Velocidade do Vento: {dados.get('vento', 0)} m/s\n"
-    )
-    pdf.multi_cell(0, 6, texto_entradas.strip())
-    pdf.ln(5)
-
-    pdf.set_font(font_family, 'B', 12)
-    pdf.cell(0, 8, "2. Resultados do Cálculo", ln=1)
-    pdf.set_font(font_family, '', 11)
-
-    texto_resultados = (
-        f"Temperatura de Orvalho: {dados.get('t_orvalho', 0):.1f} °C\n"
-        f"Espessura Mínima Recomendada: {dados.get('espessura_final', 0):.1f} mm\n"
-    )
-    pdf.multi_cell(0, 6, texto_resultados.strip())
-
-    buffer = BytesIO()
-    pdf.output(buffer)
-    return buffer.getvalue()
-    
 # --- INICIALIZAÇÃO E INTERFACE PRINCIPAL ---
 try:
     logo = Image.open("logo.png")
@@ -302,17 +127,16 @@ except FileNotFoundError:
 
 st.title("Análise de Isolamento Térmico")
 
-# Inicialização do session state para os botões de PDF
+# Inicialização do session state
 if 'calculo_realizado' not in st.session_state:
     st.session_state.calculo_realizado = False
 if 'calculo_frio_realizado' not in st.session_state:
     st.session_state.calculo_frio_realizado = False
 
 df_isolantes = carregar_isolantes()
-df_acabamentos = carregar_acabamentos()
 
-if df_isolantes.empty or df_acabamentos.empty:
-    st.error("Não foi possível carregar os dados da planilha. Verifique as abas 'Isolantes 2' e 'Emissividade'.")
+if df_isolantes.empty:
+    st.error("Não foi possível carregar os dados da planilha. Verifique a aba 'Isolantes 2'.")
     st.stop()
 
 # --- INTERFACE COM TABS ---
@@ -320,24 +144,15 @@ abas = st.tabs(["🔥 Cálculo Térmico e Financeiro", "🧊 Cálculo Térmico F
 with abas[0]:
     st.subheader("Parâmetros do Isolamento Térmico")
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        material_selecionado_nome = st.selectbox("Escolha o material do isolante", df_isolantes['nome'].tolist(), key="mat_quente")
-    with col2:
-        acabamento_selecionado_nome = st.selectbox("Tipo de isolamento / acabamento", df_acabamentos['acabamento'].tolist(), key="acab_quente")
-    with col3:
-        geometry = st.selectbox("Tipo de Superfície", ["Superfície Plana", "Tubulação"], key="geom_quente")
+    # Emissividade agora é fixa
+    emissividade_fixa = 0.9
+    geometry = "Superfície Plana" # Geometria fixa
+
+    material_selecionado_nome = st.selectbox("Escolha o material do isolante", df_isolantes['nome'].tolist(), key="mat_quente")
 
     isolante_selecionado = df_isolantes[df_isolantes['nome'] == material_selecionado_nome].iloc[0]
     k_func_str = isolante_selecionado['k_func']
     
-    acabamento_selecionado = df_acabamentos[df_acabamentos['acabamento'] == acabamento_selecionado_nome].iloc[0]
-    emissividade_selecionada = acabamento_selecionado['emissividade']
-
-    pipe_diameter_mm = 0
-    if geometry == "Tubulação":
-        pipe_diameter_mm = st.number_input("Diâmetro externo da tubulação [mm]", min_value=1.0, value=88.9, step=0.1, format="%.1f")
-
     col_temp1, col_temp2, col_temp3 = st.columns(3)
     Tq = col_temp1.number_input("Temperatura da face quente [°C]", value=250.0)
     To = col_temp2.number_input("Temperatura ambiente [°C]", value=30.0)
@@ -388,19 +203,18 @@ with abas[0]:
             st.error("Erro: A temperatura da face quente deve ser maior do que a temperatura ambiente.")
         else:
             with st.spinner("Realizando cálculos..."):
-                Tf, q_com_isolante, convergiu = encontrar_temperatura_face_fria(Tq, To, L_total / 1000, k_func_str, geometry, emissividade_selecionada, pipe_diameter_mm / 1000)
+                Tf, q_com_isolante, convergiu = encontrar_temperatura_face_fria(Tq, To, L_total / 1000, k_func_str, emissividade_fixa)
                 if convergiu:
                     st.session_state.calculo_realizado = True
                     perda_com_kw = q_com_isolante / 1000
-                    h_sem = calcular_h_conv(Tq, To, geometry, (pipe_diameter_mm / 1000) if geometry == "Tubulação" else None)
-                    q_rad_sem = emissividade_selecionada * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
+                    h_sem = calcular_h_conv(Tq, To)
+                    q_rad_sem = emissividade_fixa * sigma * ((Tq + 273.15)**4 - (To + 273.15)**4)
                     q_conv_sem = h_sem * (Tq - To)
                     perda_sem_kw = (q_rad_sem + q_conv_sem) / 1000
                     
                     dados_para_relatorio = {
-                        "material": material_selecionado_nome, "acabamento": acabamento_selecionado_nome, 
-                        "geometria": geometry, "diametro_tubo": pipe_diameter_mm, "num_camadas": numero_camadas, 
-                        "esp_total": L_total, "tq": Tq, "to": To, "emissividade": emissividade_selecionada, 
+                        "material": material_selecionado_nome, "geometria": geometry, "num_camadas": numero_camadas, 
+                        "esp_total": L_total, "tq": Tq, "to": To, "emissividade": emissividade_fixa, 
                         "tf": Tf, "perda_com_kw": perda_com_kw, "perda_sem_kw": perda_sem_kw, 
                         "calculo_financeiro": calcular_financeiro
                     }
@@ -412,7 +226,6 @@ with abas[0]:
                         eco_anual = eco_mensal * 12
                         reducao_pct = ((economia_kw_m2 / perda_sem_kw) * 100) if perda_sem_kw > 0 else 0
                         
-                        # Cálculo de Carbono
                         energia_efetiva_anual_kwh = economia_kw_m2 * m2 * h_dia * d_sem * 4.33 * 12
                         energia_bruta_anual_kwh = energia_efetiva_anual_kwh / comb_sel_obj['ef']
                         quantidade_comb_poupado = energia_bruta_anual_kwh / comb_sel_obj['pc']
@@ -440,15 +253,9 @@ with abas[0]:
             q_com_isolante = dados['perda_com_kw'] * 1000
             if k_medio and q_com_isolante is not None:
                 for i in range(dados['num_camadas'] - 1):
-                    if dados['geometria'] == "Superfície Plana":
-                        resistencia_camada = (espessuras[i] / 1000) / k_medio
-                        delta_T_camada = q_com_isolante * resistencia_camada
-                    elif dados['geometria'] == "Tubulação":
-                        r_camada_i = (dados['diametro_tubo'] / 2000) + sum(espessuras[:i]) / 1000
-                        r_camada_o = r_camada_i + espessuras[i] / 1000
-                        q_linha = q_com_isolante * (2 * math.pi * ((dados['diametro_tubo']/2000) + L_total/1000))
-                        resistencia_termica_linha = math.log(r_camada_o / r_camada_i) / (2 * math.pi * k_medio)
-                        delta_T_camada = q_linha * resistencia_termica_linha
+                    # Lógica de interface de camadas apenas para Superfície Plana
+                    resistencia_camada = (espessuras[i] / 1000) / k_medio
+                    delta_T_camada = q_com_isolante * resistencia_camada
                     T_interface = T_atual - delta_T_camada
                     st.success(f"↪️ Temp. entre camada {i+1} e {i+2}: {T_interface:.1f} °C".replace('.', ','))
                     T_atual = T_interface
@@ -470,11 +277,6 @@ with abas[0]:
             )
             m2.metric("Carbono Evitado", f"{dados.get('co2_ton_ano', 0):.2f} tCO₂e/ano")
             m3.metric("Redução de Perda", f"{dados['reducao_pct']:.1f} %")
-            
-
-        st.markdown("---")
-        pdf_bytes = gerar_pdf(dados)
-        st.download_button(label="Download Relatório PDF", data=pdf_bytes, file_name=f"Relatorio_IsolaFacil_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", key="pdf_quente")
 
     st.markdown("---")
     st.markdown("""
@@ -484,18 +286,12 @@ with abas[0]:
 with abas[1]:
     st.subheader("Cálculo de Espessura Mínima para Minimizar Condensação")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        material_frio_nome = st.selectbox("Escolha o material do isolante", df_isolantes['nome'].tolist(), key="mat_frio")
-    with col2:
-        geometry_frio = st.selectbox("Tipo de Superfície", ["Superfície Plana", "Tubulação"], key="geom_frio")
+    geometry_frio = "Superfície Plana" # Geometria fixa
+
+    material_frio_nome = st.selectbox("Escolha o material do isolante", df_isolantes['nome'].tolist(), key="mat_frio")
 
     isolante_frio_selecionado = df_isolantes[df_isolantes['nome'] == material_frio_nome].iloc[0]
     k_func_str_frio = isolante_frio_selecionado['k_func']
-
-    pipe_diameter_mm_frio = 0
-    if geometry_frio == "Tubulação":
-        pipe_diameter_mm_frio = st.number_input("Diâmetro externo da tubulação [mm]", min_value=1.0, value=88.9, step=0.1, format="%.1f", key="diam_frio")
 
     col1, col2, col3 = st.columns(3)
     Ti_frio = col1.number_input("Temperatura interna [°C]", value=5.0, key="Ti_frio")
@@ -523,7 +319,7 @@ with abas[1]:
                 for L_teste in [i * 0.001 for i in range(1, 501)]:
                     Tf, _, convergiu = encontrar_temperatura_face_fria(
                         Ti_frio, Ta_frio, L_teste, k_func_str_frio, 
-                        geometry_frio, 0.9, pipe_diameter_mm_frio / 1000, wind_speed_ms=wind_speed
+                        0.9, wind_speed_ms=wind_speed
                     )
                     if convergiu and Tf >= T_orvalho:
                         espessura_final = L_teste
@@ -533,7 +329,7 @@ with abas[1]:
                     st.success(f"✅ Espessura mínima para Minimizar condensação: {espessura_final * 1000:.1f} mm".replace('.',','))
                     st.session_state.calculo_frio_realizado = True
                     dados_para_relatorio_frio = {
-                        "material": material_frio_nome, "geometria": geometry_frio, "diametro_tubo": pipe_diameter_mm_frio,
+                        "material": material_frio_nome, "geometria": geometry_frio,
                         "ti": Ti_frio, "ta": Ta_frio, "ur": UR, "vento": wind_speed,
                         "t_orvalho": T_orvalho, "espessura_final": espessura_final * 1000
                     }
@@ -541,17 +337,6 @@ with abas[1]:
                 else:
                     st.session_state.calculo_frio_realizado = False
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-    
-    if st.session_state.get('calculo_frio_realizado', False):
-        st.markdown("---")
-        pdf_bytes_frio = gerar_pdf_frio(st.session_state.dados_ultima_simulacao_frio)
-        st.download_button(
-            label="Download Relatório PDF",
-            data=pdf_bytes_frio,
-            file_name=f"Relatorio_Condensacao_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf",
-            key="btn_pdf_frio"
-        )
 
 
 
