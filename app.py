@@ -167,31 +167,32 @@ with abas[0]:
 
     st.markdown("---")
     
-    calcular_financeiro = st.checkbox("Calcular retorno financeiro e ambiental")
-    if calcular_financeiro:
-        st.subheader("Parâmetros do Cálculo Financeiro e Ambiental")
-        st.info("💡 Os custos e fatores de emissão são pré-configurados com valores médios de mercado.")
+    # O cálculo financeiro e ambiental agora é padrão e não mais opcional.
+    calcular_financeiro = True 
+    
+    st.subheader("Parâmetros do Cálculo Financeiro e Ambiental")
+    st.info("💡 Os custos e fatores de emissão são pré-configurados com valores médios de mercado.")
+    
+    combustiveis = {
+        "Óleo BPF (kg)":                   {"v": 3.50, "pc": 11.34, "ef": 0.80, "fator_emissao": 3.15},
+        "Gás Natural (m³)":                {"v": 3.60, "pc": 9.65,  "ef": 0.75, "fator_emissao": 2.0},
+        "Lenha Eucalipto 30% umidade (ton)": {"v": 200.00,"pc": 3500.00,"ef": 0.70, "fator_emissao": 1260},
+        "Eletricidade (kWh)":                {"v": 0.75, "pc": 1.00,  "ef": 1.00, "fator_emissao": 0.0358}
+    }
+    
+    comb_sel_nome = st.selectbox("Tipo de combustível", list(combustiveis.keys()))
+    comb_sel_obj = combustiveis[comb_sel_nome]
+    
+    editar_valor = st.checkbox("Editar custo do combustível/energia")
+    if editar_valor:
+        valor_comb = st.number_input("Custo combustível (R$)", min_value=0.10, value=comb_sel_obj['v'], step=0.01, format="%.2f")
+    else:
+        valor_comb = comb_sel_obj['v']
         
-        combustiveis = {
-            "Óleo BPF (kg)":                   {"v": 3.50, "pc": 11.34, "ef": 0.80, "fator_emissao": 3.15},
-            "Gás Natural (m³)":                {"v": 3.60, "pc": 9.65,  "ef": 0.75, "fator_emissao": 2.0},
-            "Lenha Eucalipto 30% umidade (ton)": {"v": 200.00,"pc": 3500.00,"ef": 0.70, "fator_emissao": 1260},
-            "Eletricidade (kWh)":                {"v": 0.75, "pc": 1.00,  "ef": 1.00, "fator_emissao": 0.0358}
-        }
-        
-        comb_sel_nome = st.selectbox("Tipo de combustível", list(combustiveis.keys()))
-        comb_sel_obj = combustiveis[comb_sel_nome]
-        
-        editar_valor = st.checkbox("Editar custo do combustível/energia")
-        if editar_valor:
-            valor_comb = st.number_input("Custo combustível (R$)", min_value=0.10, value=comb_sel_obj['v'], step=0.01, format="%.2f")
-        else:
-            valor_comb = comb_sel_obj['v']
-            
-        col_fin1, col_fin2, col_fin3 = st.columns(3)
-        m2 = col_fin1.number_input("Área do projeto (m²)", 1.0, value=10.0)
-        h_dia = col_fin2.number_input("Horas de operação/dia", 1.0, 24.0, 8.0)
-        d_sem = col_fin3.number_input("Dias de operação/semana", 1, 7, 5)
+    col_fin1, col_fin2, col_fin3 = st.columns(3)
+    m2 = col_fin1.number_input("Área do projeto (m²)", 1.0, value=10.0)
+    h_dia = col_fin2.number_input("Horas de operação/dia", 1.0, 24.0, 8.0)
+    d_sem = col_fin3.number_input("Dias de operação/semana", 1, 7, 5)
 
     st.markdown("---")
 
@@ -337,9 +338,6 @@ with abas[1]:
                 else:
                     st.session_state.calculo_frio_realizado = False
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-
-
-
 
 
 
