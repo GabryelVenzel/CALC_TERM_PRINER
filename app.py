@@ -183,7 +183,7 @@ with abas[0]:
         valor_comb = comb_sel_obj['v']
         
     col_fin1, col_fin2, col_fin3 = st.columns(3)
-    m2 = col_fin1.number_input("Área do projeto (m²)", 1.0, value=10.0)
+    m2 = col_fin1.number_input("Área do projeto (m²)", min_value=0.1, value=10.0, format="%.2f")
     h_dia = col_fin2.number_input("Horas de operação/dia", 1.0, 24.0, 8.0)
     d_sem = col_fin3.number_input("Dias de operação/semana", 1, 7, 5)
 
@@ -331,6 +331,7 @@ with abas[1]:
                 else:
                     st.session_state.calculo_frio_realizado = False
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
+
 
 
 
