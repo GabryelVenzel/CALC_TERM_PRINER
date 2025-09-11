@@ -2,10 +2,7 @@ import streamlit as st
 import math
 import time
 from PIL import Image
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-import json
 
 # --- CONFIGURAÇÕES GERAIS E ESTILO ---
 st.set_page_config(page_title="Calculadora IsolaFácil", layout="wide")
@@ -28,30 +25,26 @@ st.markdown("""
 # --- CONSTANTE GLOBAL ---
 sigma = 5.67e-8
 
-# --- CONEXÃO E FUNÇÕES DO GOOGLE SHEETS ---
-@st.cache_resource(ttl=600)
-def get_gspread_client():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    gcp_json = json.loads(st.secrets["GCP_JSON"])
-    credentials = ServiceAccountCredentials.from_json_keyfile_dict(gcp_json, scope)
-    return gspread.authorize(credentials)
-
-def get_worksheet(sheet_name):
-    client = get_gspread_client()
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1W1JHXAnGJeWbGVK0AmORux5I7CYTEwoBIvBfVKO40aY")
-    return sheet.worksheet(sheet_name)
-
-@st.cache_data(ttl=300)
-def carregar_isolantes():
-    try:
-        worksheet = get_worksheet("Isolantes 2")
-        df = pd.DataFrame(worksheet.get_all_records())
-        df['T_min'] = pd.to_numeric(df['T_min'], errors='coerce').fillna(-999)
-        df['T_max'] = pd.to_numeric(df['T_max'], errors='coerce').fillna(9999)
-        return df
-    except Exception as ex:
-        st.error(f"Erro ao carregar materiais isolantes: {ex}")
-        return pd.DataFrame()
+# --- BANCO DE DADOS INTERNO DE ISOLANTES ---
+def carregar_isolantes_local():
+    """
+    Cria um DataFrame com os dados dos materiais isolantes diretamente no código.
+    """
+    dados_isolantes = [
+        {"nome": "Manta de fibra cerâmica 96kg/m³ até 1260°C", "k_func": "0.0317 * math.exp(0.0024 * T)", "T_min": 25, "T_max": 1260},
+        {"nome": "Manta de fibra cerâmica 128kg/m³ até 1260°C", "k_func": "0.0349 * math.exp(0.0021 * T)", "T_min": 25, "T_max": 1260},
+        {"nome": "Manta de fibra de vidro 130kg/m³ até 800°C", "k_func": "0.0286 * math.exp(0.0029 * T)", "T_min": 25, "T_max": 800},
+        {"nome": "Lã de rocha 48kg/m³ até 300°C", "k_func": "0.0333 * math.exp(0.0048 * T)", "T_min": 25, "T_max": 300},
+        {"nome": "Lã de rocha 64kg/m³ até 300°C", "k_func": "0.0333 * math.exp(0.0036 * T)", "T_min": 25, "T_max": 300},
+        {"nome": "Lã de Vidro 12kg/m³", "k_func": "4.2e-2", "T_min": -20, "T_max": 230},
+        {"nome": "Aerogel 160kg/m³ até 650°C", "k_func": "0.0183 * math.exp(0.0022 * T)", "T_min": 25, "T_max": 650},
+        {"nome": "Microporoso 220kg/m³ até 1000°C", "k_func": "0.0215 + 2e-06*T + 2e-08*T**2 + 0.0*T**3 + 0.0*T", "T_min": 25, "T_max": 1000},
+        {"nome": "Espuma elastomérica 50kg/m³", "k_func": "0.034 + 8e-05*T + 1e-06*T**2 + 0.0*T**3 + 0.0*T", "T_min": -50, "T_max": 110}
+    ]
+    df = pd.DataFrame(dados_isolantes)
+    df['T_min'] = pd.to_numeric(df['T_min'], errors='coerce').fillna(-999)
+    df['T_max'] = pd.to_numeric(df['T_max'], errors='coerce').fillna(9999)
+    return df
 
 # --- FUNÇÕES DE CÁLCULO ---
 def calcular_k(k_func_str, T_media):
@@ -133,10 +126,10 @@ if 'calculo_realizado' not in st.session_state:
 if 'calculo_frio_realizado' not in st.session_state:
     st.session_state.calculo_frio_realizado = False
 
-df_isolantes = carregar_isolantes()
+df_isolantes = carregar_isolantes_local()
 
 if df_isolantes.empty:
-    st.error("Não foi possível carregar os dados da planilha. Verifique a aba 'Isolantes 2'.")
+    st.error("Ocorreu um erro ao carregar os dados internos dos materiais isolantes.")
     st.stop()
 
 # --- INTERFACE COM TABS ---
@@ -338,8 +331,6 @@ with abas[1]:
                 else:
                     st.session_state.calculo_frio_realizado = False
                     st.error("❌ Não foi possível encontrar uma espessura que evite condensação até 500 mm.")
-
-
 
 
 
